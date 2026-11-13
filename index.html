@@ -38,7 +38,13 @@
                         </div>
                         <div class="mb-3">
                             <label class="form-label">Contraseña para desbloquear</label>
-                            <input type="password" v-model="password" class="form-control" placeholder="Mínimo 4 caracteres">
+                            <div class="input-group">
+                                <input :type="showCreatePwd ? 'text' : 'password'" v-model="password" class="form-control" placeholder="Mínimo 4 caracteres">
+                                <button class="btn btn-outline-secondary" type="button" @click="showCreatePwd = !showCreatePwd"
+                                        :title="showCreatePwd ? 'Ocultar contraseña' : 'Mostrar contraseña'">
+                                    {{ showCreatePwd ? '🙈' : '👁️' }}
+                                </button>
+                            </div>
                         </div>
                         <div class="mb-3">
                             <label class="form-label">Tipo de contenido</label>
@@ -68,8 +74,8 @@
                                      :style="{ width: Math.min(100, (estimatedBytes / MAX_BYTES) * 100) + '%' }"></div>
                             </div>
                             <small class="text-muted d-block mt-1">
-                                Límite seguro del hash URL: {{ MAX_CHARS.toLocaleString() }} caracteres.
-                                Los navegadores y apps de mensajería truncan URLs muy largas.
+                                Límite del enlace: {{ MAX_CHARS.toLocaleString() }} caracteres en el hash.
+                                Telegram corta los mensajes a 4.096, así que el enlace cabe en uno solo.
                             </small>
                         </div>
 
@@ -87,6 +93,11 @@
                             </div>
                             <small class="text-muted">Guardado en tus compartidos.</small>
                         </div>
+                    </div>
+                    <div class="card-footer text-center small bg-white">
+                        <a :href="REPO_URL" target="_blank" rel="noopener" class="link-secondary text-decoration-none">
+                            Ver código en GitHub ↗
+                        </a>
                     </div>
                 </div>
 
@@ -142,7 +153,13 @@
                         <div v-if="!decrypted">
                             <div class="mb-3">
                                 <label class="form-label">Introduce la contraseña</label>
-                                <input type="password" v-model="password" class="form-control" @keyup.enter="decryptContent">
+                                <div class="input-group">
+                                    <input :type="showViewPwd ? 'text' : 'password'" v-model="password" class="form-control" @keyup.enter="decryptContent">
+                                    <button class="btn btn-outline-secondary" type="button" @click="showViewPwd = !showViewPwd"
+                                            :title="showViewPwd ? 'Ocultar contraseña' : 'Mostrar contraseña'">
+                                        {{ showViewPwd ? '🙈' : '👁️' }}
+                                    </button>
+                                </div>
                             </div>
                             <button @click="decryptContent" class="btn btn-success w-100" :disabled="loading">
                                 <span v-if="loading" class="spinner-border spinner-border-sm"></span>
@@ -152,8 +169,13 @@
                         </div>
                         <div v-if="decrypted">
                             <div v-if="decrypted.type === 'text'">
-                                <label class="form-label fw-bold">Mensaje:</label>
-                                <pre class="bg-white p-3 border rounded">{{ decrypted.data }}</pre>
+                                <div class="d-flex justify-content-between align-items-center mb-1">
+                                    <label class="form-label fw-bold mb-0">Mensaje:</label>
+                                    <button class="btn btn-sm" :class="copiedText ? 'btn-success' : 'btn-outline-success'" @click="copyText(decrypted.data)">
+                                        {{ copiedText ? '✅ ¡Copiado!' : '📋 Copiar' }}
+                                    </button>
+                                </div>
+                                <pre class="bg-white p-3 border rounded" style="white-space: pre-wrap; word-break: break-word;">{{ decrypted.data }}</pre>
                             </div>
                             <div v-if="decrypted.type === 'file'">
                                 <label class="form-label fw-bold">Archivo listo:</label>
@@ -161,6 +183,11 @@
                                 <a :href="decrypted.data" :download="decrypted.fileName" class="btn btn-primary">Descargar Archivo</a>
                             </div>
                         </div>
+                    </div>
+                    <div class="card-footer text-center small bg-white">
+                        <a :href="REPO_URL" target="_blank" rel="noopener" class="link-secondary text-decoration-none">
+                            Ver código en GitHub ↗
+                        </a>
                     </div>
                 </div>
 
@@ -171,13 +198,17 @@
     <script>
         const { createApp, ref, onMounted, computed } = Vue;
 
+        const REPO_URL = 'https://github.com/AdelaFoofur82/CompartirSeguro';
+
         const enc = new TextEncoder();
         const dec = new TextDecoder();
 
         // --- LÍMITES ---
-        // Elegimos 30.000 caracteres en el hash como máximo seguro.
-        // Base64 URL-safe expande ~4/3. Un buffer de 22.000 bytes -> ~29.334 chars.
-        const MAX_CHARS = 30000;
+        // Telegram corta los mensajes a 4.096 caracteres, así que el enlace completo
+        // tiene que caber en un solo mensaje. Dejamos ~200 chars de margen para el
+        // texto que acompañe al enlace.
+        // Base64 URL-safe expande ~4/3: 3.900 chars de hash -> ~2.925 bytes de payload.
+        const MAX_CHARS = 3900;
         // Reservamos ~128 bytes para metadatos + cabecera antes de cifrar
         const MAX_BYTES = Math.floor(MAX_CHARS * 3 / 4) - 128;
 
@@ -253,6 +284,9 @@
                 const decrypted = ref(null);
                 const error = ref('');
                 const shares = ref([]);
+                const showCreatePwd = ref(false);
+                const showViewPwd = ref(false);
+                const copiedText = ref(false);
 
                 // Tamaño estimado: metadatos + payload cifrado -> aprox Base64
                 const estimatedBytes = computed(() => {
@@ -398,6 +432,16 @@
                     }
                 };
 
+                const copyText = async (text) => {
+                    try {
+                        await navigator.clipboard.writeText(text);
+                        copiedText.value = true;
+                        setTimeout(() => { copiedText.value = false; }, 2000);
+                    } catch {
+                        alert("No se pudo copiar. Selecciona y copia manualmente.");
+                    }
+                };
+
                 const startRename = (s) => {
                     s.editName = s.name || '';
                     s.editing = true;
@@ -424,9 +468,10 @@
                 return {
                     mode, tab, password, contentType, plainText, selectedFile,
                     generatedUrl, shareName, loading, decrypted, error, shares,
+                    showCreatePwd, showViewPwd, copiedText, REPO_URL,
                     estimatedBytes, MAX_BYTES, MAX_CHARS,
                     formatBytes, onFileChange, generateLink, decryptContent,
-                    copyUrl, loadShares, startRename, saveRename, deleteShare
+                    copyUrl, copyText, loadShares, startRename, saveRename, deleteShare
                 };
             }
         }).mount('#app');
