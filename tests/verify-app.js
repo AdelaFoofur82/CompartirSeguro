@@ -75,11 +75,6 @@ async function generar(w, { texto, expValue, nombre }) {
   setVal(w, w.document.querySelector('input[placeholder="Mínimo 4 caracteres"]'), 'clave-segura-123');
   if (nombre) setVal(w, w.document.querySelector('input[placeholder="Ej: Clave WiFi casa"]'), nombre);
   setVal(w, [...w.document.querySelectorAll('textarea')].find(t => t.placeholder === 'Escribe el secreto...') || w.document.querySelector('textarea'), texto);
-  if (expValue !== undefined) {
-    const sel = [...w.document.querySelectorAll('select')].find(s => [...s.options].some(o => o.textContent.includes('Sin caducidad')));
-    sel.value = String(expValue);
-    sel.dispatchEvent(new w.Event('change', { bubbles: true }));
-  }
   await sleep(500); // debounce de la estimación + gzip
   const btn = [...w.document.querySelectorAll('button')].find(b => b.textContent.includes('Generar Enlace'));
   btn.click();
@@ -98,14 +93,12 @@ async function generar(w, { texto, expValue, nombre }) {
   check('aviso de compresion visible', A.document.body.textContent.includes('Se comprime antes de cifrar'));
 
   const texto = 'Clave del WiFi: correcto-caballo-bateria-grapa. '.repeat(80); // ~3.900 chars comprimibles
-  const { url: urlA } = await generar(A, { texto, expValue: 600000, nombre: 'Gzip + caducidad' });
+  const { url: urlA } = await generar(A, { texto, nombre: 'Gzip sin caducidad' });
   check('enlace grande comprimido generado', urlA.length > 50, urlA.length + ' chars');
   check('enlace cabe en un solo mensaje', urlA.length <= 4096, urlA.length);
   const entrada = JSON.parse(A.localStorage.getItem('secure_share_history_v1'))[0] || {};
   check('historial marca comprimido', entrada.compressed === true, 'raw=' + entrada.size + ' B, empaquetado=' + entrada.packedSize + ' B');
   check('compresion real (>=2x)', entrada.packedSize * 2 < entrada.size, (entrada.size / entrada.packedSize).toFixed(1) + 'x');
-  check('historial guarda caducidad', entrada.exp > Date.now() + 500000 && entrada.exp < Date.now() + 700000, new Date(entrada.exp).toISOString());
-  check('caducidad por defecto NO es la elegida', entrada.exp - Date.now() < 11 * 60 * 1000);
 
   // ---------- B. Abrir el enlace antes de caducar ----------
   const { w: B, clip } = makePage(urlA, [entrada]);
@@ -118,7 +111,6 @@ async function generar(w, { texto, expValue, nombre }) {
   const valorA = bloqueA ? (bloqueA.querySelector('pre') || bloqueA.querySelector('input')) : null;
   const textoA = valorA ? (valorA.value !== undefined ? valorA.value : valorA.textContent) : '';
   check('texto descomprimido identico', textoA.trim() === texto.trim(), textoA.length + ' chars');
-  check('aviso de caducidad al abrir', B.document.body.textContent.includes('Caduca el'));
 
   const copyBtn = [...B.document.querySelectorAll('button')].find(b => b.textContent.includes('Copiar'));
   copyBtn.click(); await sleep(150);
@@ -133,22 +125,19 @@ async function generar(w, { texto, expValue, nombre }) {
   [...C.document.querySelectorAll('button')].find(b => b.textContent.includes('Mis compartidos')).click();
   await sleep(100);
   const histTxt = C.document.body.textContent.replace(/\s+/g, ' ');
-  check('badge "Caduca" en historial', /Caduca: /.test(histTxt));
   check('badge "Abierto 1 vez" en historial', /Abierto 1 vez/.test(histTxt));
   check('aviso de que solo ve este navegador', histTxt.includes('solo ve las que ocurren en este mismo navegador'));
 
-  // ---------- D. Enlace caducado (reloj +11 min) ----------
-  const { w: D } = makePage(urlA, [abierta]);
-  const realNow = Date.now.bind(Date);
+  // ---------- D. Un enlace antiguo con fecha de caducidad se abre igual ----------
+  const viejoConExp = await makeLink(JSON.stringify([{ label: 'Email', value: 'viejo@ejemplo.com' }]),
+    'clave-segura-123', { type: 'fields', exp: Date.now() - 86400000 });
+  const { w: D } = makePage(viejoConExp, []);
   await sleep(500);
-  D.Date.now = () => realNow() + 11 * 60 * 1000;
   setVal(D, D.document.querySelector('input[type="password"]'), 'clave-segura-123');
   [...D.document.querySelectorAll('button')].find(b => b.textContent.includes('Desbloquear')).click();
-  await sleep(2500);
-  const dTxt = D.document.body.textContent.replace(/\s+/g, ' ');
-  check('aviso de caducado', /Este secreto caducó el /.test(dTxt), dTxt.slice(0, 90));
-  check('no muestra el contenido caducado', !D.document.querySelector('.border.rounded.p-2'));
-  check('oculta el formulario tras caducar', ![...D.document.querySelectorAll('button')].some(b => b.textContent.includes('Desbloquear')));
+  for (let i = 0; i < 120; i++) { await sleep(100); if (D.document.querySelectorAll('.campo-label').length) break; }
+  check('enlace antiguo con exp caducada sigue abriendo', D.document.body.textContent.includes('viejo@ejemplo.com'));
+  check('ya no se habla de caducidad en la interfaz', !/caduc/i.test(D.document.body.textContent));
 
   // ---------- E. Contenido incompresible demasiado grande: boton bloqueado ----------
   const { w: E } = makePage('https://adelafoofur82.github.io/CompartirSeguro/');
@@ -160,22 +149,8 @@ async function generar(w, { texto, expValue, nombre }) {
   const eBtn = [...E.document.querySelectorAll('button')].find(b => b.textContent.includes('Generar Enlace'));
   check('texto aleatorio de 4000 chars bloquea el boton', eBtn.disabled === true, 'disabled=' + eBtn.disabled);
 
-  // ---------- F. Sin caducidad ----------
-  const { w: F } = makePage('https://adelafoofur82.github.io/CompartirSeguro/');
-  await sleep(400);
-  const { url: urlF } = await generar(F, { texto: 'solo un texto corto sin caducidad', expValue: 0 });
-  const entradaF = JSON.parse(F.localStorage.getItem('secure_share_history_v1'))[0] || {};
-  check('opcion sin caducidad no fija exp', urlF.length > 50 && !entradaF.exp, 'exp=' + entradaF.exp);
-  const { w: G } = makePage(urlF, [entradaF]);
-  await sleep(500);
-  setVal(G, G.document.querySelector('input[type="password"]'), 'clave-segura-123');
-  [...G.document.querySelectorAll('button')].find(b => b.textContent.includes('Desbloquear')).click();
-  for (let i = 0; i < 120; i++) { await sleep(100); if (G.document.querySelector('.border.rounded.p-2')) break; }
-  check('enlace sin caducidad abre igual', !!G.document.querySelector('.border.rounded.p-2') && G.document.body.textContent.includes('Sin caducidad.'),
-    G.document.body.textContent.replace(/\s+/g, ' ').slice(0, 160));
-
   // ---------- H. Banner "Úsame" en la página de ver ----------
-  const { w: H } = makePage(urlF, [entradaF]);
+  const { w: H } = makePage(urlA, [entrada]);
   await sleep(500);
   const banner = [...H.document.querySelectorAll('.alert')].find(a => a.textContent.includes('Úsame para compartir tus secretos'));
   check('banner "Úsame" en la pagina de ver', !!banner);

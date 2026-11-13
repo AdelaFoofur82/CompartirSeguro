@@ -12,13 +12,13 @@ el contenido cifrado viaja en la propia URL, así que nada se guarda en ningún 
   Si un valor es una URL (`http://` o `https://`) se detecta solo y al abrirlo sale como enlace, con
   botón «Abrir», sin dejar de poder copiarse. Cada campo tiene su botón de copiar y arriba hay un
   «Copiar todo».
-- Le pones una **contraseña** y una **caducidad**.
+- Le pones una **contraseña**.
 - La app comprime, cifra y empaqueta todo en el fragmento (`#...`) del enlace.
 - Le pasas el enlace por donde quieras (cabe en un solo mensaje) y la contraseña **por otro canal**.
 - Quien lo recibe abre el enlace, mete la contraseña y ve el texto o descarga el archivo.
 
 Extra: botón de copiar en cada campo (y «Copiar todo»), ojo 🙈/👁️ para ver la contraseña mientras la escribes,
-historial local de lo que has compartido y aviso si un enlace ya caducó. La app se puede **instalar**
+historial local de lo que has compartido. La app se puede **instalar**
 (botón 📲 Instálame cuando el navegador lo permite) y la página de ver invita a quien recibe el secreto
 a crear el suyo. El logo y el favicon son el mismo monito con los ojos cerrados de la contraseña.
 
@@ -52,8 +52,8 @@ Los enlaces antiguos se siguen abriendo: los de payload de texto plano se muestr
 y los que llevaban `kind: "password"` o `autoUrl: false` mantienen ese comportamiento (valor oculto
 tras el ojo, sin convertir a enlace) aunque la interfaz ya no ofrezca esas opciones.
 
-`exp` es la fecha de caducidad en milisegundos. Va **cifrada**, así que nadie sabe cuándo caduca
-un enlace sin la contraseña.
+Los enlaces antiguos pueden traer además un campo `exp` (una fecha de caducidad) de cuando la app
+ofrecía esa opción. Se ignora: el enlace abre con normalidad.
 
 ## Límites de tamaño
 
@@ -86,10 +86,11 @@ si no cabe, con el motivo visible. En modo campos, los nombres y el JSON de estr
   en sitios públicos.
 - Una contraseña débil se puede probar por fuerza bruta contra el propio enlace. 600.000 iteraciones de
   PBKDF2 encarecen cada intento, pero no lo hacen imposible.
-- **No hay revocación real.** Los datos están dentro del enlace: nadie puede borrarlos de un servidor
-  porque no hay servidor. La caducidad se comprueba en el cliente al desbloquear, y alguien con
-  conocimientos podría saltársela editando el código de la página (aunque seguiría sin poder leer el
-  contenido sin la contraseña).
+- **No hay revocación ni caducidad.** Los datos están dentro del enlace: nadie puede borrarlos de un
+  servidor porque no hay servidor. Un enlace funciona para siempre mientras alguien tenga sus bytes y la
+  contraseña. Por eso la app no ofrece fecha de caducidad: prometerla sería mentir, ya que el control
+  se haría en el propio navegador de quien abre el enlace y bastaría con editarlo para saltárselo.
+  Caducidad real exige un servidor que borre el contenido, y eso es justo lo que esta app no tiene.
 - **El registro de aperturas es local.** El historial marca "abierto" cuando *ese* enlace se abre en
   *este* navegador. Para saber si otra persona lo abrió haría falta un servidor que lo apunte, y eso
   rompería la promesa de "sin servidores".
@@ -98,7 +99,7 @@ si no cabe, con el motivo visible. En modo campos, los nombres y el JSON de estr
 ## Cómo usarla
 
 1. Abre la app y escribe el secreto (o elige el archivo).
-2. Pon una contraseña de verdad (mínimo 4 caracteres; mejor una frase larga) y elige caducidad.
+2. Pon una contraseña de verdad (mínimo 4 caracteres; mejor una frase larga).
 3. Pulsa **Generar Enlace** y copia el resultado.
 4. Manda el enlace por un canal y la contraseña por otro distinto.
 5. Quien lo recibe abre el enlace, escribe la contraseña y listo.
@@ -150,7 +151,7 @@ coincidirán.
 ### Pruebas
 
 Las pruebas montan la página real en jsdom y la manejan como un usuario: rellenan el formulario,
-pulsan los botones y comprueban lo que se ve (texto descifrado, portapapeles, avisos de caducidad,
+pulsan los botones y comprueban lo que se ve (texto descifrado, portapapeles, el historial,
 historial).
 
 ```bash
