@@ -142,6 +142,50 @@ async function generar(w, { texto, expValue, nombre }) {
   for (let i = 0; i < 120; i++) { await sleep(100); if (G.document.querySelector('pre')) break; }
   check('enlace sin caducidad abre igual', !!G.document.querySelector('pre') && G.document.body.textContent.includes('Sin caducidad.'));
 
+  // ---------- H. Banner "Úsame" en la página de ver ----------
+  const { w: H } = makePage(urlF, [entradaF]);
+  await sleep(500);
+  const banner = [...H.document.querySelectorAll('.alert')].find(a => a.textContent.includes('Úsame para compartir tus secretos'));
+  check('banner "Úsame" en la pagina de ver', !!banner);
+  const cta = banner && banner.querySelector('a');
+  check('CTA del banner lleva a crear (sin hash)',
+    cta && cta.getAttribute('href') === 'https://adelafoofur82.github.io/CompartirSeguro/',
+    cta && cta.getAttribute('href'));
+
+  // ---------- I. Botón "Instálame" ----------
+  const { w: I } = makePage('https://adelafoofur82.github.io/CompartirSeguro/');
+  await sleep(500);
+  const hayBoton = () => [...I.document.querySelectorAll('button')].some(b => b.textContent.includes('Instálame'));
+  check('boton Instalame oculto sin evento del navegador', !hayBoton());
+  let prompted = 0;
+  const ev = new I.Event('beforeinstallprompt');
+  ev.prompt = async () => { prompted++; };
+  ev.userChoice = Promise.resolve({ outcome: 'accepted' });
+  I.dispatchEvent(ev);
+  await sleep(120);
+  check('boton Instalame aparece con beforeinstallprompt', hayBoton());
+  [...I.document.querySelectorAll('button')].find(b => b.textContent.includes('Instálame')).click();
+  await sleep(250);
+  check('lanza el prompt nativo', prompted === 1, 'prompt()=' + prompted);
+  check('se oculta tras lanzar la instalacion', !hayBoton());
+
+  // ---------- J. Logo y favicon del monito ----------
+  const { w: J } = makePage('https://adelafoofur82.github.io/CompartirSeguro/');
+  await sleep(400);
+  const favs = [...J.document.querySelectorAll('link[rel="icon"]')].map(l => l.getAttribute('href'));
+  check('favicon SVG del monito', favs.includes('icon.svg'), JSON.stringify(favs));
+  const logo = J.document.querySelector('img[src="icon.svg"]');
+  check('logo del monito en la cabecera', !!logo && logo.getAttribute('width') === '40');
+  const manifest = JSON.parse(fs.readFileSync(path.join(ROOT, 'manifest.json'), 'utf8'));
+  const srcs = manifest.icons.map(i => i.src);
+  check('manifest declara el SVG', srcs.includes('icon.svg'), JSON.stringify(srcs));
+  check('manifest declara PNG 192 y 512', srcs.includes('icons/icon-192.png') && srcs.includes('icons/icon-512.png'));
+  for (const f of ['icon.svg', 'icons/icon-192.png', 'icons/icon-512.png', 'icons/icon-maskable-512.png', 'icons/apple-touch-icon.png']) {
+    const p = path.join(ROOT, f);
+    const ok = fs.existsSync(p) && (f.endsWith('.svg') || fs.readFileSync(p).subarray(0, 8).equals(Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a])));
+    check('existe y es valido: ' + f, ok);
+  }
+
   const failed = results.filter(r => !r.ok);
   console.log('\n' + (results.length - failed.length) + '/' + results.length + ' comprobaciones OK');
   process.exit(failed.length ? 1 : 0);

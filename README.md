@@ -13,7 +13,9 @@ el contenido cifrado viaja en la propia URL, así que nada se guarda en ningún 
 - Quien lo recibe abre el enlace, mete la contraseña y ve el texto o descarga el archivo.
 
 Extra: botón de copiar en los secretos de texto, ojo 🙈/👁️ para ver la contraseña mientras la escribes,
-historial local de lo que has compartido y aviso si un enlace ya caducó.
+historial local de lo que has compartido y aviso si un enlace ya caducó. La app se puede **instalar**
+(botón 📲 Instálame cuando el navegador lo permite) y la página de ver invita a quien recibe el secreto
+a crear el suyo. El logo y el favicon son el mismo monito con los ojos cerrados de la contraseña.
 
 ## Cómo funciona por dentro
 
@@ -94,6 +96,9 @@ Sin build, sin dependencias instaladas: tres archivos y ya.
 index.html      toda la app (Vue 3 + Bootstrap desde CDN)
 manifest.json   metadatos de la PWA
 sw.js           service worker (caché de los archivos)
+icon.svg        logo/favicon: el monito con los ojos cerrados
+icons/          PNG 192/512/maskable + apple-touch, mismo dibujo
+tools/          make-icons.py, el generador de iconos (sin dependencias)
 tests/          pruebas automatizadas con jsdom
 ```
 
@@ -105,7 +110,24 @@ python3 -m http.server 8099
 ```
 
 **Importante al publicar:** `sw.js` es cache-first. Cada vez que cambies `index.html` hay que subir
-`CACHE_NAME` (`share-secure-v3` → `v4`), o quien ya la haya abierto seguirá viendo la versión vieja.
+`CACHE_NAME` (`share-secure-v4` → `v5`), o quien ya la haya abierto seguirá viendo la versión vieja.
+
+### Instalación como app
+
+El botón 📲 Instálame solo aparece si el navegador ofrece la instalación: Chrome y Edge disparan
+`beforeinstallprompt` cuando la PWA cumple los requisitos (manifest con iconos de 192 y 512, service
+worker y HTTPS). Firefox no lo soporta, así que ahí el botón no se muestra. En iPhone/iPad y en el
+Chrome de iOS tampoco: allí se instala a mano desde *Compartir → Añadir a pantalla de inicio*.
+
+Los iconos son PNG generados con `tools/make-icons.py` (matemática pura, sin Pillow) a partir del mismo
+dibujo que `icon.svg`:
+
+```bash
+python3 tools/make-icons.py
+```
+
+Si cambias el monito, cambia el SVG y el generador a la vez, o el icono instalado y el favicon no
+coincidirán.
 
 ### Pruebas
 
