@@ -1,0 +1,435 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Compartir Seguro</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/vue@3/dist/vue.global.js"></script>
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#0d6efd">
+</head>
+<body class="bg-light">
+    <div id="app" class="container py-4">
+        <div class="row justify-content-center">
+            <div class="col-12 col-lg-8">
+
+                <!-- Tabs -->
+                <ul class="nav nav-tabs mb-3" v-if="mode === 'create'">
+                    <li class="nav-item">
+                        <button class="nav-link" :class="{active: tab==='new'}" @click="tab='new'">Nuevo enlace</button>
+                    </li>
+                    <li class="nav-item">
+                        <button class="nav-link" :class="{active: tab==='list'}" @click="tab='list'">
+                            Mis compartidos <span class="badge bg-secondary">{{ shares.length }}</span>
+                        </button>
+                    </li>
+                </ul>
+
+                <!-- Modo Crear - Nuevo -->
+                <div v-if="mode === 'create' && tab === 'new'" class="card shadow">
+                    <div class="card-header bg-primary text-white">
+                        <h4 class="mb-0">Crear enlace seguro</h4>
+                    </div>
+                    <div class="card-body">
+                        <div class="mb-3">
+                            <label class="form-label">Nombre para identificarlo (opcional)</label>
+                            <input type="text" v-model="shareName" class="form-control" placeholder="Ej: Clave WiFi casa">
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Contraseña para desbloquear</label>
+                            <input type="password" v-model="password" class="form-control" placeholder="Mínimo 4 caracteres">
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Tipo de contenido</label>
+                            <select v-model="contentType" class="form-select">
+                                <option value="text">Texto</option>
+                                <option value="file">Archivo</option>
+                            </select>
+                        </div>
+                        <div v-if="contentType === 'text'" class="mb-3">
+                            <textarea v-model="plainText" class="form-control" rows="4" placeholder="Escribe el secreto..."></textarea>
+                        </div>
+                        <div v-if="contentType === 'file'" class="mb-3">
+                            <input type="file" @change="onFileChange" class="form-control">
+                        </div>
+
+                        <!-- Barra de tamaño estimado -->
+                        <div class="mb-3">
+                            <div class="d-flex justify-content-between small text-muted mb-1">
+                                <span>Espacio estimado del enlace</span>
+                                <span :class="estimatedBytes > MAX_BYTES ? 'text-danger fw-bold' : ''">
+                                    {{ formatBytes(estimatedBytes) }} / {{ formatBytes(MAX_BYTES) }}
+                                </span>
+                            </div>
+                            <div class="progress" style="height: 8px;">
+                                <div class="progress-bar"
+                                     :class="estimatedBytes > MAX_BYTES ? 'bg-danger' : (estimatedBytes > MAX_BYTES*0.8 ? 'bg-warning' : 'bg-success')"
+                                     :style="{ width: Math.min(100, (estimatedBytes / MAX_BYTES) * 100) + '%' }"></div>
+                            </div>
+                            <small class="text-muted d-block mt-1">
+                                Límite seguro del hash URL: {{ MAX_CHARS.toLocaleString() }} caracteres.
+                                Los navegadores y apps de mensajería truncan URLs muy largas.
+                            </small>
+                        </div>
+
+                        <button @click="generateLink" class="btn btn-primary w-100"
+                                :disabled="loading || estimatedBytes > MAX_BYTES || !password">
+                            <span v-if="loading" class="spinner-border spinner-border-sm"></span>
+                            Generar Enlace
+                        </button>
+
+                        <div v-if="generatedUrl" class="mt-4">
+                            <label class="form-label fw-bold">Copia este enlace:</label>
+                            <div class="input-group">
+                                <input type="text" :value="generatedUrl" class="form-control" readonly>
+                                <button class="btn btn-outline-secondary" @click="copyUrl(generatedUrl)">Copiar</button>
+                            </div>
+                            <small class="text-muted">Guardado en tus compartidos.</small>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Modo Crear - Lista -->
+                <div v-if="mode === 'create' && tab === 'list'" class="card shadow">
+                    <div class="card-header bg-secondary text-white d-flex justify-content-between align-items-center">
+                        <h4 class="mb-0">Mis compartidos</h4>
+                        <button class="btn btn-sm btn-outline-light" @click="loadShares">Refrescar</button>
+                    </div>
+                    <div class="card-body">
+                        <div v-if="shares.length === 0" class="text-center text-muted py-4">
+                            Aún no has creado ningún enlace.
+                        </div>
+                        <div v-for="s in shares" :key="s.id" class="border rounded p-3 mb-2">
+                            <div class="d-flex justify-content-between align-items-start">
+                                <div class="flex-grow-1 me-2">
+                                    <div v-if="s.editing">
+                                        <input type="text" v-model="s.editName" class="form-control form-control-sm mb-1">
+                                        <button class="btn btn-sm btn-success" @click="saveRename(s)">Guardar</button>
+                                        <button class="btn btn-sm btn-secondary" @click="s.editing=false">Cancelar</button>
+                                    </div>
+                                    <div v-else>
+                                        <div class="fw-bold">
+                                            {{ s.name || '(sin nombre)' }}
+                                            <span class="badge bg-info text-dark ms-1">{{ s.type }}</span>
+                                        </div>
+                                        <small class="text-muted">
+                                            {{ new Date(s.date).toLocaleString() }} ·
+                                            {{ formatBytes(s.size) }} ·
+                                            {{ s.urlLength.toLocaleString() }} chars URL
+                                        </small>
+                                    </div>
+                                </div>
+                                <div class="btn-group btn-group-sm">
+                                    <button class="btn btn-outline-primary" @click="copyUrl(s.url)" title="Copiar">📋</button>
+                                    <button class="btn btn-outline-secondary" @click="startRename(s)" title="Renombrar">✏️</button>
+                                    <button class="btn btn-outline-danger" @click="deleteShare(s.id)" title="Eliminar">🗑️</button>
+                                </div>
+                            </div>
+                            <div class="mt-2">
+                                <input type="text" :value="s.url" class="form-control form-control-sm" readonly>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Modo Ver -->
+                <div v-if="mode === 'view'" class="card shadow">
+                    <div class="card-header bg-success text-white">
+                        <h4 class="mb-0">Contenido Protegido</h4>
+                    </div>
+                    <div class="card-body">
+                        <div v-if="!decrypted">
+                            <div class="mb-3">
+                                <label class="form-label">Introduce la contraseña</label>
+                                <input type="password" v-model="password" class="form-control" @keyup.enter="decryptContent">
+                            </div>
+                            <button @click="decryptContent" class="btn btn-success w-100" :disabled="loading">
+                                <span v-if="loading" class="spinner-border spinner-border-sm"></span>
+                                Desbloquear
+                            </button>
+                            <div v-if="error" class="alert alert-danger mt-3">{{ error }}</div>
+                        </div>
+                        <div v-if="decrypted">
+                            <div v-if="decrypted.type === 'text'">
+                                <label class="form-label fw-bold">Mensaje:</label>
+                                <pre class="bg-white p-3 border rounded">{{ decrypted.data }}</pre>
+                            </div>
+                            <div v-if="decrypted.type === 'file'">
+                                <label class="form-label fw-bold">Archivo listo:</label>
+                                <p>{{ decrypted.fileName }}</p>
+                                <a :href="decrypted.data" :download="decrypted.fileName" class="btn btn-primary">Descargar Archivo</a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const { createApp, ref, onMounted, computed } = Vue;
+
+        const enc = new TextEncoder();
+        const dec = new TextDecoder();
+
+        // --- LÍMITES ---
+        // Elegimos 30.000 caracteres en el hash como máximo seguro.
+        // Base64 URL-safe expande ~4/3. Un buffer de 22.000 bytes -> ~29.334 chars.
+        const MAX_CHARS = 30000;
+        // Reservamos ~128 bytes para metadatos + cabecera antes de cifrar
+        const MAX_BYTES = Math.floor(MAX_CHARS * 3 / 4) - 128;
+
+        // --- CRIPTO ---
+        async function deriveKey(password, salt) {
+            const baseKey = await crypto.subtle.importKey(
+                "raw", enc.encode(password), "PBKDF2", false, ["deriveKey"]
+            );
+            return crypto.subtle.deriveKey(
+                { name: "PBKDF2", salt, iterations: 600000, hash: "SHA-256" },
+                baseKey, { name: "AES-GCM", length: 256 }, false, ["encrypt", "decrypt"]
+            );
+        }
+
+        async function encryptData(dataBuffer, password) {
+            const salt = crypto.getRandomValues(new Uint8Array(16));
+            const iv = crypto.getRandomValues(new Uint8Array(12));
+            const key = await deriveKey(password, salt);
+            const ct = await crypto.subtle.encrypt({ name: "AES-GCM", iv }, key, dataBuffer);
+            const out = new Uint8Array(salt.length + iv.length + ct.byteLength);
+            out.set(salt, 0);
+            out.set(iv, 16);
+            out.set(new Uint8Array(ct), 28);
+            return out;
+        }
+
+        async function decryptData(combinedBuffer, password) {
+            const salt = combinedBuffer.slice(0, 16);
+            const iv = combinedBuffer.slice(16, 28);
+            const ct = combinedBuffer.slice(28);
+            const key = await deriveKey(password, salt);
+            return crypto.subtle.decrypt({ name: "AES-GCM", iv }, key, ct);
+        }
+
+        function arrayBufferToBase64Url(buffer) {
+            const bytes = new Uint8Array(buffer);
+            let binary = '';
+            for (let i = 0; i < bytes.byteLength; i++) binary += String.fromCharCode(bytes[i]);
+            return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+        }
+
+        function base64UrlToArrayBuffer(base64url) {
+            let base64 = base64url.replace(/-/g, '+').replace(/_/g, '/');
+            while (base64.length % 4) base64 += '=';
+            const binary = atob(base64);
+            const bytes = new Uint8Array(binary.length);
+            for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+            return bytes.buffer;
+        }
+
+        // --- localStorage ---
+        const LS_KEY = 'secure_share_history_v1';
+        function readShares() {
+            try { return JSON.parse(localStorage.getItem(LS_KEY)) || []; }
+            catch { return []; }
+        }
+        function writeShares(list) {
+            try { localStorage.setItem(LS_KEY, JSON.stringify(list)); }
+            catch (e) { alert("No se pudo guardar en localStorage (lleno)."); }
+        }
+
+        createApp({
+            setup() {
+                const mode = ref('create');
+                const tab = ref('new');
+                const password = ref('');
+                const contentType = ref('text');
+                const plainText = ref('');
+                const selectedFile = ref(null);
+                const generatedUrl = ref('');
+                const shareName = ref('');
+                const loading = ref(false);
+                const decrypted = ref(null);
+                const error = ref('');
+                const shares = ref([]);
+
+                // Tamaño estimado: metadatos + payload cifrado -> aprox Base64
+                const estimatedBytes = computed(() => {
+                    let payload = 0;
+                    let metaExtra = 0;
+                    if (contentType.value === 'text') {
+                        payload = enc.encode(plainText.value || '').length;
+                        metaExtra = 40; // JSON meta aprox
+                    } else if (selectedFile.value) {
+                        payload = selectedFile.value.size;
+                        metaExtra = 80 + (selectedFile.value.name?.length || 0);
+                    }
+                    // Estructura: 1 + 4 + meta + payload, más 28 de salt+iv, y Base64 URL-safe
+                    const raw = 1 + 4 + metaExtra + payload + 28;
+                    return Math.ceil(raw * 4 / 3);
+                });
+
+                const formatBytes = (n) => {
+                    if (n < 1024) return n + ' B';
+                    if (n < 1024 * 1024) return (n / 1024).toFixed(1) + ' KB';
+                    return (n / (1024 * 1024)).toFixed(2) + ' MB';
+                };
+
+                const loadShares = () => { shares.value = readShares().sort((a,b) => b.date - a.date); };
+
+                onMounted(() => {
+                    if (window.location.hash.length > 1) {
+                        mode.value = 'view';
+                    }
+                    loadShares();
+                    if ('serviceWorker' in navigator) {
+                        navigator.serviceWorker.register('sw.js');
+                    }
+                });
+
+                const onFileChange = (e) => { selectedFile.value = e.target.files[0]; };
+
+                const generateLink = async () => {
+                    if (!password.value || password.value.length < 4) {
+                        alert("La contraseña debe tener al menos 4 caracteres.");
+                        return;
+                    }
+                    if (estimatedBytes.value > MAX_BYTES) {
+                        alert("El contenido excede el límite de la URL.");
+                        return;
+                    }
+                    loading.value = true;
+                    try {
+                        let dataBuffer;
+                        let meta = { type: contentType.value };
+
+                        if (contentType.value === 'text') {
+                            if (!plainText.value) throw new Error("Escribe algo.");
+                            dataBuffer = enc.encode(plainText.value).buffer;
+                        } else {
+                            if (!selectedFile.value) throw new Error("Selecciona un archivo.");
+                            dataBuffer = await selectedFile.value.arrayBuffer();
+                            meta.fileName = selectedFile.value.name;
+                            meta.mime = selectedFile.value.type;
+                        }
+
+                        const metaBytes = enc.encode(JSON.stringify(meta));
+                        const metaLen = new Uint8Array(4);
+                        new DataView(metaLen.buffer).setUint32(0, metaBytes.length);
+
+                        const totalLen = 1 + 4 + metaBytes.length + dataBuffer.byteLength;
+                        const combined = new Uint8Array(totalLen);
+                        combined[0] = 0x01;
+                        combined.set(metaLen, 1);
+                        combined.set(metaBytes, 5);
+                        combined.set(new Uint8Array(dataBuffer), 5 + metaBytes.length);
+
+                        const encrypted = await encryptData(combined.buffer, password.value);
+                        const b64 = arrayBufferToBase64Url(encrypted);
+
+                        // Verificación dura por si la estimación falló
+                        if (b64.length > MAX_CHARS) {
+                            throw new Error(`El enlace resultante (${b64.length} chars) excede el límite de ${MAX_CHARS}.`);
+                        }
+
+                        const baseUrl = window.location.origin + window.location.pathname;
+                        generatedUrl.value = `${baseUrl}#${b64}`;
+
+                        // Guardar en historial
+                        const entry = {
+                            id: Date.now() + '-' + Math.random().toString(36).slice(2,7),
+                            name: shareName.value || '',
+                            type: contentType.value,
+                            size: dataBuffer.byteLength,
+                            urlLength: b64.length,
+                            url: generatedUrl.value,
+                            date: Date.now()
+                        };
+                        const list = readShares();
+                        list.push(entry);
+                        writeShares(list);
+                        loadShares();
+                        shareName.value = '';
+                    } catch (err) {
+                        alert("Error: " + err.message);
+                    } finally {
+                        loading.value = false;
+                    }
+                };
+
+                const decryptContent = async () => {
+                    if (!password.value) return;
+                    loading.value = true;
+                    error.value = '';
+                    try {
+                        const hash = window.location.hash.slice(1);
+                        if (!hash) throw new Error("No hay datos en el enlace.");
+                        const encryptedBuffer = base64UrlToArrayBuffer(hash);
+                        const decryptedBuffer = await decryptData(encryptedBuffer, password.value);
+
+                        const view = new Uint8Array(decryptedBuffer);
+                        const metaLen = new DataView(view.buffer).getUint32(1);
+                        const metaJson = dec.decode(view.slice(5, 5 + metaLen));
+                        const meta = JSON.parse(metaJson);
+                        const rawData = view.slice(5 + metaLen);
+
+                        if (meta.type === 'text') {
+                            decrypted.value = { type: 'text', data: dec.decode(rawData) };
+                        } else {
+                            const blob = new Blob([rawData], { type: meta.mime || 'application/octet-stream' });
+                            const url = URL.createObjectURL(blob);
+                            decrypted.value = { type: 'file', fileName: meta.fileName, data: url };
+                        }
+                    } catch (err) {
+                        console.error(err);
+                        error.value = "Contraseña incorrecta o enlace corrupto.";
+                    } finally {
+                        loading.value = false;
+                    }
+                };
+
+                const copyUrl = async (url) => {
+                    try {
+                        await navigator.clipboard.writeText(url);
+                        alert("Copiado al portapapeles");
+                    } catch {
+                        alert("No se pudo copiar. Selecciona y copia manualmente.");
+                    }
+                };
+
+                const startRename = (s) => {
+                    s.editName = s.name || '';
+                    s.editing = true;
+                };
+
+                const saveRename = (s) => {
+                    const list = readShares();
+                    const item = list.find(x => x.id === s.id);
+                    if (item) {
+                        item.name = s.editName.trim();
+                        writeShares(list);
+                    }
+                    s.editing = false;
+                    loadShares();
+                };
+
+                const deleteShare = (id) => {
+                    if (!confirm("¿Eliminar este enlace del historial?")) return;
+                    const list = readShares().filter(x => x.id !== id);
+                    writeShares(list);
+                    loadShares();
+                };
+
+                return {
+                    mode, tab, password, contentType, plainText, selectedFile,
+                    generatedUrl, shareName, loading, decrypted, error, shares,
+                    estimatedBytes, MAX_BYTES, MAX_CHARS,
+                    formatBytes, onFileChange, generateLink, decryptContent,
+                    copyUrl, loadShares, startRename, saveRename, deleteShare
+                };
+            }
+        }).mount('#app');
+    </script>
+</body>
+</html>
