@@ -59,6 +59,16 @@
                         <div v-if="contentType === 'file'" class="mb-3">
                             <input type="file" @change="onFileChange" class="form-control">
                         </div>
+                        <div class="mb-3">
+                            <label class="form-label">Caducidad del enlace</label>
+                            <select v-model.number="expiryMs" class="form-select">
+                                <option v-for="o in EXPIRY_OPTIONS" :key="o.value" :value="o.value">{{ o.label }}</option>
+                            </select>
+                            <small class="text-muted d-block mt-1">
+                                Pasada esa fecha la app se niega a mostrar el contenido. La fecha viaja cifrada:
+                                sin la contraseña nadie sabe cuándo caduca.
+                            </small>
+                        </div>
 
                         <!-- Barra de tamaño estimado -->
                         <div class="mb-3">
@@ -76,6 +86,8 @@
                             <small class="text-muted d-block mt-1">
                                 Límite del enlace: {{ MAX_CHARS.toLocaleString() }} caracteres en el hash.
                                 Telegram corta los mensajes a 4.096, así que el enlace cabe en uno solo.
+                                <span v-if="canCompress">Se comprime antes de cifrar: {{ formatBytes(rawBytes) }} → {{ formatBytes(estimatedPayload) }}.</span>
+                                <span v-else>Este navegador no soporta compresión: el contenido viaja tal cual.</span>
                             </small>
                         </div>
 
@@ -91,7 +103,11 @@
                                 <input type="text" :value="generatedUrl" class="form-control" readonly>
                                 <button class="btn btn-outline-secondary" @click="copyUrl(generatedUrl)">Copiar</button>
                             </div>
-                            <small class="text-muted">Guardado en tus compartidos.</small>
+                            <small class="text-muted d-block">
+                                Guardado en tus compartidos.
+                                <span v-if="generatedExp">Caduca el {{ new Date(generatedExp).toLocaleString() }}.</span>
+                                <span v-else>Sin caducidad.</span>
+                            </small>
                         </div>
                     </div>
                     <div class="card-footer text-center small bg-white">
@@ -111,6 +127,10 @@
                         <div v-if="shares.length === 0" class="text-center text-muted py-4">
                             Aún no has creado ningún enlace.
                         </div>
+                        <p v-else class="small text-muted">
+                            El registro de aperturas solo ve las que ocurren en este mismo navegador.
+                            Para saber si otra persona lo abrió haría falta un servidor.
+                        </p>
                         <div v-for="s in shares" :key="s.id" class="border rounded p-3 mb-2">
                             <div class="d-flex justify-content-between align-items-start">
                                 <div class="flex-grow-1 me-2">
@@ -129,6 +149,10 @@
                                             {{ formatBytes(s.size) }} ·
                                             {{ s.urlLength.toLocaleString() }} chars URL
                                         </small>
+                                        <div class="mt-1">
+                                            <span class="badge me-1" :class="expiryClass(s)">{{ expiryLabel(s) }}</span>
+                                            <span class="badge" :class="s.openedAt ? 'bg-success' : 'bg-secondary'">{{ openedLabel(s) }}</span>
+                                        </div>
                                     </div>
                                 </div>
                                 <div class="btn-group btn-group-sm">
@@ -142,6 +166,11 @@
                             </div>
                         </div>
                     </div>
+                    <div class="card-footer text-center small bg-white">
+                        <a :href="REPO_URL" target="_blank" rel="noopener" class="link-secondary text-decoration-none">
+                            Ver código en GitHub ↗
+                        </a>
+                    </div>
                 </div>
 
                 <!-- Modo Ver -->
@@ -150,7 +179,10 @@
                         <h4 class="mb-0">Contenido Protegido</h4>
                     </div>
                     <div class="card-body">
-                        <div v-if="!decrypted">
+                        <div v-if="expired" class="alert alert-warning mb-0">
+                            ⏳ {{ expired }}
+                        </div>
+                        <div v-if="!decrypted && !expired">
                             <div class="mb-3">
                                 <label class="form-label">Introduce la contraseña</label>
                                 <div class="input-group">
@@ -182,6 +214,11 @@
                                 <p>{{ decrypted.fileName }}</p>
                                 <a :href="decrypted.data" :download="decrypted.fileName" class="btn btn-primary">Descargar Archivo</a>
                             </div>
+                            <p class="small text-muted mb-0 mt-2">
+                                <span v-if="decrypted.exp">Caduca el {{ new Date(decrypted.exp).toLocaleString() }}.</span>
+                                <span v-else>Sin caducidad.</span>
+                                <span v-if="openedHere"> · Marcado como abierto en este navegador.</span>
+                            </p>
                         </div>
                     </div>
                     <div class="card-footer text-center small bg-white">
@@ -196,7 +233,7 @@
     </div>
 
     <script>
-        const { createApp, ref, onMounted, computed } = Vue;
+        const { createApp, ref, watch, onMounted } = Vue;
 
         const REPO_URL = 'https://github.com/AdelaFoofur82/CompartirSeguro';
 
@@ -211,6 +248,45 @@
         const MAX_CHARS = 3900;
         // Reservamos ~128 bytes para metadatos + cabecera antes de cifrar
         const MAX_BYTES = Math.floor(MAX_CHARS * 3 / 4) - 128;
+
+        // --- CADUCIDAD ---
+        const EXPIRY_OPTIONS = [
+            { label: 'Sin caducidad', value: 0 },
+            { label: '10 minutos', value: 10 * 60 * 1000 },
+            { label: '1 hora', value: 60 * 60 * 1000 },
+            { label: '24 horas', value: 24 * 60 * 60 * 1000 },
+            { label: '7 días', value: 7 * 24 * 60 * 60 * 1000 }
+        ];
+
+        // --- COMPRESIÓN (gzip) ---
+        // Comprimir ANTES de cifrar: el texto normal encoge 2-4x y así cabe mucho
+        // más secreto en el mismo enlace.
+        const canCompress = typeof CompressionStream !== 'undefined'
+            && typeof DecompressionStream !== 'undefined'
+            && typeof Blob !== 'undefined' && typeof Response !== 'undefined';
+
+        async function gzipBytes(bytes) {
+            const stream = new Blob([bytes]).stream().pipeThrough(new CompressionStream('gzip'));
+            return new Uint8Array(await new Response(stream).arrayBuffer());
+        }
+
+        async function gunzipBytes(bytes) {
+            const stream = new Blob([bytes]).stream().pipeThrough(new DecompressionStream('gzip'));
+            return new Uint8Array(await new Response(stream).arrayBuffer());
+        }
+
+        // Devuelve el payload a guardar: comprimido solo si de verdad ahorra bytes
+        async function packPayload(bytes) {
+            if (canCompress && bytes.byteLength > 48) {
+                try {
+                    const gz = await gzipBytes(bytes);
+                    if (gz.byteLength + 2 < bytes.byteLength) return { stored: gz, compressed: true };
+                } catch (e) {
+                    console.warn('Compresión no disponible:', e);
+                }
+            }
+            return { stored: bytes, compressed: false };
+        }
 
         // --- CRIPTO ---
         async function deriveKey(password, salt) {
@@ -279,29 +355,51 @@
                 const plainText = ref('');
                 const selectedFile = ref(null);
                 const generatedUrl = ref('');
+                const generatedExp = ref(0);
                 const shareName = ref('');
                 const loading = ref(false);
                 const decrypted = ref(null);
                 const error = ref('');
+                const expired = ref('');
+                const openedHere = ref(false);
                 const shares = ref([]);
                 const showCreatePwd = ref(false);
                 const showViewPwd = ref(false);
                 const copiedText = ref(false);
+                const expiryMs = ref(24 * 60 * 60 * 1000);
 
-                // Tamaño estimado: metadatos + payload cifrado -> aprox Base64
-                const estimatedBytes = computed(() => {
-                    let payload = 0;
-                    let metaExtra = 0;
+                // Estimación real: comprime igual que lo hará generateLink
+                const estimatedBytes = ref(0);
+                const estimatedPayload = ref(0);
+                const rawBytes = ref(0);
+                let estimateToken = 0;
+
+                const updateEstimate = async () => {
+                    const token = ++estimateToken;
+                    let raw = new Uint8Array(0);
+                    const meta = { v: 1, type: contentType.value, compressed: false, exp: 0 };
                     if (contentType.value === 'text') {
-                        payload = enc.encode(plainText.value || '').length;
-                        metaExtra = 40; // JSON meta aprox
+                        raw = enc.encode(plainText.value || '');
                     } else if (selectedFile.value) {
-                        payload = selectedFile.value.size;
-                        metaExtra = 80 + (selectedFile.value.name?.length || 0);
+                        raw = new Uint8Array(await selectedFile.value.arrayBuffer());
+                        meta.fileName = selectedFile.value.name;
+                        meta.mime = selectedFile.value.type;
                     }
+                    const packed = await packPayload(raw);
+                    if (token !== estimateToken) return; // llegó otra escritura mientras comprimíamos
+                    meta.compressed = packed.compressed;
+                    meta.exp = expiryMs.value ? Date.now() + expiryMs.value : 0;
+                    const metaLen = enc.encode(JSON.stringify(meta)).length;
+                    rawBytes.value = raw.byteLength;
+                    estimatedPayload.value = packed.stored.byteLength;
                     // Estructura: 1 + 4 + meta + payload, más 28 de salt+iv, y Base64 URL-safe
-                    const raw = 1 + 4 + metaExtra + payload + 28;
-                    return Math.ceil(raw * 4 / 3);
+                    estimatedBytes.value = Math.ceil((1 + 4 + metaLen + packed.stored.byteLength + 28) * 4 / 3);
+                };
+
+                let estimateTimer = null;
+                watch([contentType, plainText, selectedFile, expiryMs], () => {
+                    clearTimeout(estimateTimer);
+                    estimateTimer = setTimeout(updateEstimate, 250);
                 });
 
                 const formatBytes = (n) => {
@@ -312,11 +410,26 @@
 
                 const loadShares = () => { shares.value = readShares().sort((a,b) => b.date - a.date); };
 
+                const expiryLabel = (s) => {
+                    if (!s.exp) return 'Sin caducidad';
+                    return (Date.now() > s.exp ? 'Caducó: ' : 'Caduca: ') + new Date(s.exp).toLocaleString();
+                };
+                const expiryClass = (s) => {
+                    if (!s.exp) return 'bg-light text-secondary border';
+                    return Date.now() > s.exp ? 'bg-danger' : 'bg-warning text-dark';
+                };
+                const openedLabel = (s) => {
+                    if (!s.openedAt) return 'Sin abrir aquí';
+                    const n = s.openCount || 1;
+                    return 'Abierto ' + n + (n > 1 ? ' veces' : ' vez') + ' · ' + new Date(s.openedAt).toLocaleString();
+                };
+
                 onMounted(() => {
                     if (window.location.hash.length > 1) {
                         mode.value = 'view';
                     }
                     loadShares();
+                    updateEstimate();
                     if ('serviceWorker' in navigator) {
                         navigator.serviceWorker.register('sw.js');
                     }
@@ -335,29 +448,33 @@
                     }
                     loading.value = true;
                     try {
-                        let dataBuffer;
-                        let meta = { type: contentType.value };
+                        let raw;
+                        const meta = { v: 1, type: contentType.value };
 
                         if (contentType.value === 'text') {
                             if (!plainText.value) throw new Error("Escribe algo.");
-                            dataBuffer = enc.encode(plainText.value).buffer;
+                            raw = enc.encode(plainText.value);
                         } else {
                             if (!selectedFile.value) throw new Error("Selecciona un archivo.");
-                            dataBuffer = await selectedFile.value.arrayBuffer();
+                            raw = new Uint8Array(await selectedFile.value.arrayBuffer());
                             meta.fileName = selectedFile.value.name;
                             meta.mime = selectedFile.value.type;
                         }
+
+                        const packed = await packPayload(raw);
+                        meta.compressed = packed.compressed;
+                        if (expiryMs.value) meta.exp = Date.now() + expiryMs.value;
 
                         const metaBytes = enc.encode(JSON.stringify(meta));
                         const metaLen = new Uint8Array(4);
                         new DataView(metaLen.buffer).setUint32(0, metaBytes.length);
 
-                        const totalLen = 1 + 4 + metaBytes.length + dataBuffer.byteLength;
+                        const totalLen = 1 + 4 + metaBytes.length + packed.stored.byteLength;
                         const combined = new Uint8Array(totalLen);
                         combined[0] = 0x01;
                         combined.set(metaLen, 1);
                         combined.set(metaBytes, 5);
-                        combined.set(new Uint8Array(dataBuffer), 5 + metaBytes.length);
+                        combined.set(packed.stored, 5 + metaBytes.length);
 
                         const encrypted = await encryptData(combined.buffer, password.value);
                         const b64 = arrayBufferToBase64Url(encrypted);
@@ -369,15 +486,22 @@
 
                         const baseUrl = window.location.origin + window.location.pathname;
                         generatedUrl.value = `${baseUrl}#${b64}`;
+                        generatedExp.value = meta.exp || 0;
 
                         // Guardar en historial
                         const entry = {
                             id: Date.now() + '-' + Math.random().toString(36).slice(2,7),
                             name: shareName.value || '',
                             type: contentType.value,
-                            size: dataBuffer.byteLength,
+                            size: raw.byteLength,
+                            packedSize: packed.stored.byteLength,
+                            compressed: packed.compressed,
                             urlLength: b64.length,
+                            hash: b64,
                             url: generatedUrl.value,
+                            exp: meta.exp || 0,
+                            openCount: 0,
+                            openedAt: null,
                             date: Date.now()
                         };
                         const list = readShares();
@@ -392,10 +516,26 @@
                     }
                 };
 
+                // Marca el enlace como abierto en el historial de ESTE navegador
+                const markOpened = () => {
+                    const hash = window.location.hash.slice(1);
+                    if (!hash) return;
+                    const list = readShares();
+                    const item = list.find(x => x.hash === hash || (x.url && x.url.split('#')[1] === hash));
+                    if (!item) return;
+                    item.openCount = (item.openCount || 0) + 1;
+                    if (!item.openedAt) item.openedAt = Date.now();
+                    item.lastOpenedAt = Date.now();
+                    writeShares(list);
+                    loadShares();
+                    openedHere.value = true;
+                };
+
                 const decryptContent = async () => {
                     if (!password.value) return;
                     loading.value = true;
                     error.value = '';
+                    expired.value = '';
                     try {
                         const hash = window.location.hash.slice(1);
                         if (!hash) throw new Error("No hay datos en el enlace.");
@@ -406,15 +546,24 @@
                         const metaLen = new DataView(view.buffer).getUint32(1);
                         const metaJson = dec.decode(view.slice(5, 5 + metaLen));
                         const meta = JSON.parse(metaJson);
-                        const rawData = view.slice(5 + metaLen);
+                        let rawData = view.slice(5 + metaLen);
+
+                        if (meta.compressed) rawData = await gunzipBytes(rawData);
+
+                        if (meta.exp && Date.now() > meta.exp) {
+                            expired.value = "Este secreto caducó el " + new Date(meta.exp).toLocaleString() + ".";
+                            decrypted.value = null;
+                            return;
+                        }
 
                         if (meta.type === 'text') {
-                            decrypted.value = { type: 'text', data: dec.decode(rawData) };
+                            decrypted.value = { type: 'text', data: dec.decode(rawData), exp: meta.exp || 0 };
                         } else {
                             const blob = new Blob([rawData], { type: meta.mime || 'application/octet-stream' });
                             const url = URL.createObjectURL(blob);
-                            decrypted.value = { type: 'file', fileName: meta.fileName, data: url };
+                            decrypted.value = { type: 'file', fileName: meta.fileName, data: url, exp: meta.exp || 0 };
                         }
+                        markOpened();
                     } catch (err) {
                         console.error(err);
                         error.value = "Contraseña incorrecta o enlace corrupto.";
@@ -467,11 +616,12 @@
 
                 return {
                     mode, tab, password, contentType, plainText, selectedFile,
-                    generatedUrl, shareName, loading, decrypted, error, shares,
-                    showCreatePwd, showViewPwd, copiedText, REPO_URL,
-                    estimatedBytes, MAX_BYTES, MAX_CHARS,
+                    generatedUrl, generatedExp, shareName, loading, decrypted, error, expired, openedHere, shares,
+                    showCreatePwd, showViewPwd, copiedText, REPO_URL, EXPIRY_OPTIONS, expiryMs, canCompress,
+                    estimatedBytes, estimatedPayload, rawBytes, MAX_BYTES, MAX_CHARS,
                     formatBytes, onFileChange, generateLink, decryptContent,
-                    copyUrl, copyText, loadShares, startRename, saveRename, deleteShare
+                    copyUrl, copyText, loadShares, startRename, saveRename, deleteShare,
+                    expiryLabel, expiryClass, openedLabel
                 };
             }
         }).mount('#app');
