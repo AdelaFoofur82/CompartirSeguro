@@ -64,12 +64,49 @@
                         <div class="mb-3">
                             <label class="form-label">Tipo de contenido</label>
                             <select v-model="contentType" class="form-select">
-                                <option value="text">Texto</option>
+                                <option value="fields">Campos con nombre (email, contraseña, URL…)</option>
+                                <option value="text">Texto libre</option>
                                 <option value="file">Archivo</option>
                             </select>
                         </div>
+                        <div v-if="contentType === 'fields'" class="mb-3">
+                            <label class="form-label">Campos del secreto</label>
+                            <div v-for="(f, i) in fields" :key="f.id" class="border rounded p-2 mb-2 bg-white">
+                                <div class="d-flex gap-2 align-items-center mb-1">
+                                    <input type="text" v-model="f.label" class="form-control form-control-sm"
+                                           :placeholder="i === 0 ? 'Nombre (ej: Email)' : 'Nombre (ej: Contraseña)'">
+                                    <select v-model="f.kind" class="form-select form-select-sm" style="max-width: 34%;"
+                                            :title="f.kind === 'password' ? 'Se oculta hasta pulsar el ojo' : 'Se ve siempre'">
+                                        <option value="text">Texto</option>
+                                        <option value="password">Contraseña</option>
+                                    </select>
+                                    <button class="btn btn-sm btn-outline-danger" @click="removeField(i)"
+                                            :disabled="fields.length <= 1" title="Quitar este campo">🗑️</button>
+                                </div>
+                                <textarea v-model="f.value" class="form-control" rows="2"
+                                          :placeholder="f.kind === 'url' ? 'https://…' : 'Valor'"></textarea>
+                                <div class="form-check form-check-inline mt-1">
+                                    <input class="form-check-input" type="checkbox" :id="'auto-' + f.id" v-model="f.autoUrl">
+                                    <label class="form-check-label small" :for="'auto-' + f.id">
+                                        Es una URL (hacer enlace)
+                                        <span v-if="detectUrl(f.value)" class="text-success">· detectada ✓</span>
+                                    </label>
+                                </div>
+                            </div>
+                            <button class="btn btn-sm btn-outline-primary" @click="addField"
+                                    :disabled="fields.length >= MAX_FIELDS">
+                                ➕ Añadir campo
+                            </button>
+                            <small class="text-muted d-block mt-1">
+                                {{ fields.length }}/{{ MAX_FIELDS }} campos. Todo (nombres incluidos) viaja cifrado
+                                y ocupa espacio en el enlace: la barra de abajo lo cuenta.
+                                <span class="text-danger" v-if="fields.length >= MAX_FIELDS">Máximo alcanzado.</span>
+                            </small>
+                        </div>
                         <div v-if="contentType === 'text'" class="mb-3">
-                            <textarea v-model="plainText" class="form-control" rows="4" placeholder="Escribe el secreto..."></textarea>
+                            <label class="form-label">Texto</label>
+                            <textarea v-model="plainText" class="form-control" rows="4"
+                                      placeholder="Escribe el secreto..."></textarea>
                         </div>
                         <div v-if="contentType === 'file'" class="mb-3">
                             <input type="file" @change="onFileChange" class="form-control">
@@ -158,6 +195,9 @@
                                         <div class="fw-bold">
                                             {{ s.name || '(sin nombre)' }}
                                             <span class="badge bg-info text-dark ms-1">{{ s.type }}</span>
+                                            <span v-if="s.fieldCount > 1" class="badge bg-light text-secondary border ms-1">
+                                                {{ s.fieldCount }} campos
+                                            </span>
                                         </div>
                                         <small class="text-muted">
                                             {{ new Date(s.date).toLocaleString() }} ·
@@ -223,13 +263,50 @@
                         </div>
                         <div v-if="decrypted">
                             <div v-if="decrypted.type === 'text'">
-                                <div class="d-flex justify-content-between align-items-center mb-1">
+                                <div v-if="decrypted.fields.length > 1" class="d-flex justify-content-between align-items-center mb-2">
                                     <label class="form-label fw-bold mb-0">Mensaje:</label>
-                                    <button class="btn btn-sm" :class="copiedText ? 'btn-success' : 'btn-outline-success'" @click="copyText(decrypted.data)">
-                                        {{ copiedText ? '✅ ¡Copiado!' : '📋 Copiar' }}
+                                    <button class="btn btn-sm" :class="copiedText ? 'btn-success' : 'btn-outline-success'"
+                                            @click="copyAllFields">
+                                        {{ copiedText ? '✅ ¡Copiado!' : '📋 Copiar todo' }}
                                     </button>
                                 </div>
-                                <pre class="bg-white p-3 border rounded" style="white-space: pre-wrap; word-break: break-word;">{{ decrypted.data }}</pre>
+                                <div v-for="(f, i) in decrypted.fields" :key="i" class="border rounded p-2 mb-2 bg-white">
+                                    <div class="d-flex justify-content-between align-items-center mb-1">
+                                        <span class="fw-bold small campo-label" :data-campo="i">{{ f.label || 'Campo ' + (i + 1) }}</span>
+                                        <div class="d-flex gap-1">
+                                            <a v-if="isLinkField(f)" :href="f.value" target="_blank" rel="noopener noreferrer"
+                                               class="btn btn-sm btn-outline-primary" title="Abrir este enlace">🔗 Abrir</a>
+                                            <button class="btn btn-sm" :class="copyState(f) ? 'btn-success' : 'btn-outline-success'"
+                                                    @click="copyField(f)">
+                                                {{ copyState(f) ? '✅ ¡Copiado!' : '📋 Copiar' }}
+                                            </button>
+                                        </div>
+                                    </div>
+                                    <div v-if="f.kind === 'password'" class="small text-muted mb-1">
+                                        Contraseña oculta por si alguien mira la pantalla.
+                                    </div>
+                                    <div class="input-group" v-if="f.kind === 'password' || !f.label">
+                                        <input :type="revealedFields[i] ? 'text' : 'password'" :value="f.value"
+                                               class="form-control form-control-sm" readonly>
+                                        <button v-if="f.kind === 'password'" class="btn btn-sm btn-outline-secondary" type="button"
+                                                @click="revealedFields[i] = !revealedFields[i]"
+                                                :title="revealedFields[i] ? 'Ocultar' : 'Mostrar'">
+                                            {{ revealedFields[i] ? '🙈' : '👁️' }}
+                                        </button>
+                                    </div>
+                                    <template v-else>
+                                        <a v-if="isLinkField(f)" :href="f.value" target="_blank" rel="noopener noreferrer"
+                                           class="d-block small text-break mb-0">{{ f.value }}</a>
+                                        <pre v-else class="mb-0 small" style="white-space: pre-wrap; word-break: break-word;">{{ f.value }}</pre>
+                                    </template>
+                                    <div v-if="!f.label && isLinkField(f)" class="small text-muted mt-1">Enlace detectado: ábrelo con «Abrir» o cópialo tal cual.</div>
+                                </div>
+                                <div v-if="decrypted.fields.length === 1" class="d-flex justify-content-end">
+                                    <button class="btn btn-sm" :class="copiedText ? 'btn-outline-success' : 'btn-outline-success'"
+                                            @click="copyField(decrypted.fields[0])">
+                                        {{ copyState(decrypted.fields[0]) ? '✅ ¡Copiado!' : '📋 Copiar' }}
+                                    </button>
+                                </div>
                             </div>
                             <div v-if="decrypted.type === 'file'">
                                 <label class="form-label fw-bold">Archivo listo:</label>
@@ -357,6 +434,66 @@
             return bytes.buffer;
         }
 
+        // --- CAMPOS DEL SECRETO ---
+        // El contenido de texto es un JSON con lista de campos: [{ "label": "Email", "value": "...", "kind": "text" }]
+        // Así un enlace puede llevar email + contraseña y cada cosa se copia por separado.
+        const MAX_FIELDS = 10;
+        const DEFAULT_FIELDS = [
+            { label: '', value: '', kind: 'text' },
+            { label: '', value: '', kind: 'text' }
+        ];
+        let fieldSeq = 0;
+        const newField = (label = '', value = '', kind = 'text') => ({
+            id: 'f' + (++fieldSeq), label, value, kind, autoUrl: true
+        });
+
+        // ¿El valor es una URL http(s) que podamos convertir en enlace?
+        function detectUrl(value) {
+            const v = (value || '').trim();
+            if (!/^https?:\/\/\S+$/i.test(v)) return '';
+            if (v.length > 2048) return '';
+            try {
+                const u = new URL(v);
+                if (!u.hostname.includes('.')) return '';
+                return v;
+            } catch { return ''; }
+        }
+        const isLinkField = (f) => !!detectUrl(f.value) && f.autoUrl !== false;
+
+        function serializeFields(list) {
+            const clean = list.map((f, i) => ({
+                label: (f.label || '').trim(),
+                value: f.value || '',
+                kind: f.kind === 'password' ? 'password' : 'text',
+                autoUrl: f.autoUrl !== false,
+                _i: i
+            })).filter(f => (f.label || f.value));
+            if (!clean.length) return '';
+            if (clean.length === 1 && !clean[0].label && clean[0].kind === 'text' && !detectUrl(clean[0].value)) return clean[0].value;
+            return JSON.stringify(clean.map(({ label, value, kind, autoUrl }) => ({ label, value, kind, autoUrl })));
+        }
+
+        // Lee el payload de texto: formato viejo = texto plano; nuevo = JSON de campos
+        function parseFields(text, hint) {
+            const looksJson = (text || '').trim().startsWith('[');
+            if (looksJson) {
+                try {
+                    const arr = JSON.parse(text);
+                    if (Array.isArray(arr)) {
+                        const fields = arr.map(f => ({
+                            label: String(f.label || ''),
+                            value: String(f.value ?? ''),
+                            kind: f.kind === 'password' ? 'password' : 'text',
+                            autoUrl: f.autoUrl !== false
+                        })).filter(f => f.label || f.value);
+                        if (fields.length) return fields;
+                    }
+                } catch (e) { /* no era JSON, se trata como texto normal */ }
+            }
+            const legacyLabel = (hint && hint.trim()) ? hint.trim() : '';
+            return [{ label: legacyLabel, value: text || '', kind: 'text', autoUrl: true }];
+        }
+
         // --- localStorage ---
         const LS_KEY = 'secure_share_history_v1';
         function readShares() {
@@ -373,8 +510,9 @@
                 const mode = ref('create');
                 const tab = ref('new');
                 const password = ref('');
-                const contentType = ref('text');
+                const contentType = ref('fields');
                 const plainText = ref('');
+                const fields = ref(DEFAULT_FIELDS.map(f => newField(f.label, f.value, f.kind)));
                 const selectedFile = ref(null);
                 const generatedUrl = ref('');
                 const generatedExp = ref(0);
@@ -388,7 +526,42 @@
                 const showCreatePwd = ref(false);
                 const showViewPwd = ref(false);
                 const copiedText = ref(false);
+                const copiedField = ref(-1);
+                const revealedFields = ref([]);
                 const expiryMs = ref(24 * 60 * 60 * 1000);
+
+                const addField = () => {
+                    if (fields.value.length >= MAX_FIELDS) return;
+                    fields.value.push(newField());
+                };
+                const removeField = (i) => {
+                    if (fields.value.length <= 1) return;
+                    fields.value.splice(i, 1);
+                };
+                // Texto que se copia con "Copiar todo"
+                const copyAllFields = async () => {
+                    if (!decrypted.value) return;
+                    try {
+                        await navigator.clipboard.writeText(decrypted.value.fullText);
+                        copiedText.value = true;
+                        setTimeout(() => { copiedText.value = false; }, 2000);
+                    } catch {
+                        alert("No se pudo copiar. Selecciona y copia manualmente.");
+                    }
+                };
+                const copyState = (f) => copiedField.value !== -1 && decrypted.value &&
+                    decrypted.value.fields[copiedField.value] === f;
+                const copyField = async (f) => {
+                    const idx = decrypted.value ? decrypted.value.fields.indexOf(f) : -1;
+                    try {
+                        await navigator.clipboard.writeText(f.value);
+                        copiedField.value = idx;
+                        copiedText.value = idx === -1 ? true : copiedText.value;
+                        setTimeout(() => { if (copiedField.value === idx) copiedField.value = -1; copiedText.value = false; }, 2000);
+                    } catch {
+                        alert("No se pudo copiar. Selecciona y copia manualmente.");
+                    }
+                };
 
                 // --- PWA: instalación ---
                 const deferredPrompt = ref(null);
@@ -422,6 +595,8 @@
                     const meta = { v: 1, type: contentType.value, compressed: false, exp: 0 };
                     if (contentType.value === 'text') {
                         raw = enc.encode(plainText.value || '');
+                    } else if (contentType.value === 'fields') {
+                        raw = enc.encode(serializeFields(fields.value));
                     } else if (selectedFile.value) {
                         raw = new Uint8Array(await selectedFile.value.arrayBuffer());
                         meta.fileName = selectedFile.value.name;
@@ -439,10 +614,10 @@
                 };
 
                 let estimateTimer = null;
-                watch([contentType, plainText, selectedFile, expiryMs], () => {
+                watch([contentType, fields, selectedFile, expiryMs], () => {
                     clearTimeout(estimateTimer);
                     estimateTimer = setTimeout(updateEstimate, 250);
-                });
+                }, { deep: true });
 
                 const formatBytes = (n) => {
                     if (n < 1024) return n + ' B';
@@ -510,6 +685,10 @@
                         if (contentType.value === 'text') {
                             if (!plainText.value) throw new Error("Escribe algo.");
                             raw = enc.encode(plainText.value);
+                        } else if (contentType.value === 'fields') {
+                            const serialized = serializeFields(fields.value);
+                            if (!serialized) throw new Error("Rellena al menos un campo (nombre o valor).");
+                            raw = enc.encode(serialized);
                         } else {
                             if (!selectedFile.value) throw new Error("Selecciona un archivo.");
                             raw = new Uint8Array(await selectedFile.value.arrayBuffer());
@@ -549,6 +728,7 @@
                             id: Date.now() + '-' + Math.random().toString(36).slice(2,7),
                             name: shareName.value || '',
                             type: contentType.value,
+                            fieldCount: contentType.value === 'fields' ? fields.value.filter(f => f.label || f.value).length : 0,
                             size: raw.byteLength,
                             packedSize: packed.stored.byteLength,
                             compressed: packed.compressed,
@@ -565,6 +745,7 @@
                         writeShares(list);
                         loadShares();
                         shareName.value = '';
+                        fields.value = [newField(), newField()];
                     } catch (err) {
                         alert("Error: " + err.message);
                     } finally {
@@ -612,8 +793,17 @@
                             return;
                         }
 
-                        if (meta.type === 'text') {
-                            decrypted.value = { type: 'text', data: dec.decode(rawData), exp: meta.exp || 0 };
+                        if (meta.type === 'text' || meta.type === 'fields') {
+                            const plain = dec.decode(rawData);
+                            const list = parseFields(plain, meta.label);
+                            decrypted.value = {
+                                type: 'text',
+                                fields: list,
+                                fullText: list.map(f => f.label ? f.label + ': ' + f.value : f.value).join('\n'),
+                                exp: meta.exp || 0
+                            };
+                            revealedFields.value = list.map(() => false);
+                            copiedField.value = -1;
                         } else {
                             const blob = new Blob([rawData], { type: meta.mime || 'application/octet-stream' });
                             const url = URL.createObjectURL(blob);
@@ -671,10 +861,11 @@
                 };
 
                 return {
-                    mode, tab, password, contentType, plainText, selectedFile,
+                    mode, tab, password, contentType, fields, plainText, selectedFile,
                     generatedUrl, generatedExp, shareName, loading, decrypted, error, expired, openedHere, shares,
                     showCreatePwd, showViewPwd, copiedText, REPO_URL, EXPIRY_OPTIONS, expiryMs, canCompress,
-                    canInstall, installApp, homeUrl,
+                    canInstall, installApp, homeUrl, MAX_FIELDS, addField, removeField, detectUrl, isLinkField,
+                    copiedField, revealedFields, copyField, copyAllFields, copyState,
                     estimatedBytes, estimatedPayload, rawBytes, MAX_BYTES, MAX_CHARS,
                     formatBytes, onFileChange, generateLink, decryptContent,
                     copyUrl, copyText, loadShares, startRename, saveRename, deleteShare,

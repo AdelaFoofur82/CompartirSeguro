@@ -7,12 +7,16 @@ el contenido cifrado viaja en la propia URL, así que nada se guarda en ningún 
 
 ## Qué hace
 
-- Escribes un texto (o eliges un archivo), le pones una **contraseña** y una **caducidad**.
+- Eliges el tipo de contenido: **campos con nombre** (email, contraseña, URL…), **texto libre** o **archivo**.
+- En modo campos puedes añadir y quitar campos (hasta 10), ponerle nombre a cada uno y marcarlo como
+  contraseña (llega oculta) o como URL (se convierte en enlace con botón «Abrir»). Cada campo tiene su
+  propio botón de copiar, y arriba hay un «Copiar todo».
+- Le pones una **contraseña** y una **caducidad**.
 - La app comprime, cifra y empaqueta todo en el fragmento (`#...`) del enlace.
 - Le pasas el enlace por donde quieras (cabe en un mensaje de Telegram) y la contraseña **por otro canal**.
 - Quien lo recibe abre el enlace, mete la contraseña y ve el texto o descarga el archivo.
 
-Extra: botón de copiar en los secretos de texto, ojo 🙈/👁️ para ver la contraseña mientras la escribes,
+Extra: botón de copiar en cada campo (y «Copiar todo»), ojo 🙈/👁️ para ver la contraseña mientras la escribes,
 historial local de lo que has compartido y aviso si un enlace ya caducó. La app se puede **instalar**
 (botón 📲 Instálame cuando el navegador lo permite) y la página de ver invita a quien recibe el secreto
 a crear el suyo. El logo y el favicon son el mismo monito con los ojos cerrados de la contraseña.
@@ -31,9 +35,19 @@ Lo que va cifrado por dentro:
 ```
 0x01                  versión del formato
 uint32 big-endian     longitud de la cabecera
-JSON metadatos        {"v":1,"type":"text","compressed":true,"exp":1763000000000}
-payload               texto o archivo (comprimido si "compressed" es true)
+JSON metadatos        {"v":1,"type":"fields","compressed":true,"exp":1763000000000}
+payload               texto, JSON de campos o archivo (comprimido si "compressed" es true)
 ```
+
+El payload de tipo `fields` es una lista JSON:
+
+```json
+[{"label":"Email","value":"adela@ejemplo.com","kind":"text","autoUrl":true},
+ {"label":"Contraseña","value":"P@ssw0rd","kind":"password","autoUrl":true},
+ {"label":"Web","value":"https://ejemplo.com","kind":"text","autoUrl":true}]
+```
+
+Los enlaces antiguos (payload de texto plano) se siguen abriendo: se muestran como un único campo.
 
 `exp` es la fecha de caducidad en milisegundos. Va **cifrada**, así que nadie sabe cuándo caduca
 un enlace sin la contraseña.
@@ -51,7 +65,8 @@ en **3.900 caracteres**. Eso deja un payload útil de unos **2.900 bytes ya cifr
 | Texto normal de ~5.000 caracteres | ~5 KB | Según lo compresible que sea |
 
 La app te avisa antes de generar: la barra muestra el tamaño real ya comprimido y desactiva el botón
-si no cabe, con el motivo visible.
+si no cabe, con el motivo visible. En modo campos, los nombres y el JSON de estructura también ocupan
+(unos 30-40 bytes por campo), así que con campos muy cortos pesa más la estructura que el contenido.
 
 ## Seguridad: lo que protege y lo que no
 
