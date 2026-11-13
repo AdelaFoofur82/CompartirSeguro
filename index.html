@@ -126,8 +126,8 @@
                                      :style="{ width: Math.min(100, (estimatedBytes / MAX_BYTES) * 100) + '%' }"></div>
                             </div>
                             <small class="text-muted d-block mt-1">
-                                Límite del enlace: {{ MAX_CHARS.toLocaleString() }} caracteres en el hash.
-                                Telegram corta los mensajes a 4.096, así que el enlace cabe en uno solo.
+                                Límite del enlace: {{ MAX_CHARS.toLocaleString() }} caracteres en el hash,
+                                para que quepa en un solo mensaje de cualquier app de mensajería.
                                 <span v-if="canCompress">Se comprime antes de cifrar: {{ formatBytes(rawBytes) }} → {{ formatBytes(estimatedPayload) }}.</span>
                                 <span v-else>Este navegador no soporta compresión: el contenido viaja tal cual.</span>
                             </small>
@@ -330,8 +330,8 @@
         const dec = new TextDecoder();
 
         // --- LÍMITES ---
-        // Telegram corta los mensajes a 4.096 caracteres, así que el enlace completo
-        // tiene que caber en un solo mensaje. Dejamos ~200 chars de margen para el
+        // El enlace tiene que caber en un solo mensaje de mensajería (la mayoría de
+        // apps cortan alrededor de 4.096 caracteres). Dejamos ~200 de margen para el
         // texto que acompañe al enlace.
         // Base64 URL-safe expande ~4/3: 3.900 chars de hash -> ~2.925 bytes de payload.
         const MAX_CHARS = 3900;

@@ -100,7 +100,7 @@ async function generar(w, { texto, expValue, nombre }) {
   const texto = 'Clave del WiFi: correcto-caballo-bateria-grapa. '.repeat(80); // ~3.900 chars comprimibles
   const { url: urlA } = await generar(A, { texto, expValue: 600000, nombre: 'Gzip + caducidad' });
   check('enlace grande comprimido generado', urlA.length > 50, urlA.length + ' chars');
-  check('enlace cabe en Telegram', urlA.length <= 4096, urlA.length);
+  check('enlace cabe en un solo mensaje', urlA.length <= 4096, urlA.length);
   const entrada = JSON.parse(A.localStorage.getItem('secure_share_history_v1'))[0] || {};
   check('historial marca comprimido', entrada.compressed === true, 'raw=' + entrada.size + ' B, empaquetado=' + entrada.packedSize + ' B');
   check('compresion real (>=2x)', entrada.packedSize * 2 < entrada.size, (entrada.size / entrada.packedSize).toFixed(1) + 'x');

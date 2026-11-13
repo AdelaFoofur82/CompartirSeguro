@@ -14,7 +14,7 @@ el contenido cifrado viaja en la propia URL, así que nada se guarda en ningún 
   «Copiar todo».
 - Le pones una **contraseña** y una **caducidad**.
 - La app comprime, cifra y empaqueta todo en el fragmento (`#...`) del enlace.
-- Le pasas el enlace por donde quieras (cabe en un mensaje de Telegram) y la contraseña **por otro canal**.
+- Le pasas el enlace por donde quieras (cabe en un solo mensaje) y la contraseña **por otro canal**.
 - Quien lo recibe abre el enlace, mete la contraseña y ve el texto o descarga el archivo.
 
 Extra: botón de copiar en cada campo (y «Copiar todo»), ojo 🙈/👁️ para ver la contraseña mientras la escribes,
@@ -57,8 +57,8 @@ un enlace sin la contraseña.
 
 ## Límites de tamaño
 
-El enlace tiene que caber en un solo mensaje de Telegram (4.096 caracteres), así que el hash se corta
-en **3.900 caracteres**. Eso deja un payload útil de unos **2.900 bytes ya cifrados**.
+El enlace tiene que caber en un solo mensaje de una app de mensajería (la mayoría cortan alrededor de
+4.096 caracteres), así que el hash se corta en **3.900 caracteres**. Eso deja un payload útil de unos **2.900 bytes ya cifrados**.
 
 | Contenido | Tamaño | Cabe |
 |---|---|---|
@@ -76,7 +76,7 @@ si no cabe, con el motivo visible. En modo campos, los nombres y el JSON de estr
 **Protege:**
 
 - El contenido no viaja en claro: ni el servidor de GitHub, ni el navegador por el que pasa el enlace,
-  ni Telegram ven el secreto ni la contraseña.
+  ni la app de mensajería por la que lo mandes ven el secreto ni la contraseña.
 - La contraseña nunca se envía ni se guarda: solo se usa en tu navegador para derivar la clave.
 - `salt` e `iv` aleatorios por enlace, así que dos enlaces con el mismo texto y contraseña son distintos.
 
