@@ -16,6 +16,30 @@ const html = html0
   .replace(/<script>[\s\S]*?<\/script>/, '');
 
 const sleep = ms => new Promise(r => setTimeout(r, ms));
+
+// Construye un enlace a mano con el formato real: [0x01][len meta][meta JSON][payload]
+async function makeLink(payloadText, password, metaExtra = {}) {
+  const enc = new TextEncoder();
+  const meta = Object.assign({ v: 1, type: 'fields' }, metaExtra);
+  const metaBytes = enc.encode(JSON.stringify(meta));
+  const payload = enc.encode(payloadText);
+  const raw = new Uint8Array(1 + 4 + metaBytes.length + payload.length);
+  raw[0] = 0x01;
+  new DataView(raw.buffer).setUint32(1, metaBytes.length);
+  raw.set(metaBytes, 5);
+  raw.set(payload, 5 + metaBytes.length);
+
+  const salt = webcrypto.getRandomValues(new Uint8Array(16));
+  const iv = webcrypto.getRandomValues(new Uint8Array(12));
+  const base = await webcrypto.subtle.importKey('raw', enc.encode(password), 'PBKDF2', false, ['deriveKey']);
+  const key = await webcrypto.subtle.deriveKey({ name: 'PBKDF2', salt, iterations: 600000, hash: 'SHA-256' },
+    base, { name: 'AES-GCM', length: 256 }, false, ['encrypt']);
+  const ct = new Uint8Array(await webcrypto.subtle.encrypt({ name: 'AES-GCM', iv }, key, raw));
+  const out = new Uint8Array(16 + 12 + ct.length);
+  out.set(salt, 0); out.set(iv, 16); out.set(ct, 28);
+  const b64 = Buffer.from(out).toString('base64').replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+  return 'https://adelafoofur82.github.io/CompartirSeguro/#' + b64;
+}
 const results = [];
 const check = (name, ok, info = '') => { results.push({ name, ok }); console.log((ok ? 'OK  ' : 'FAIL') + ' ' + name + (info ? ' :: ' + info : '')); };
 
@@ -228,7 +252,7 @@ async function generar(w, { texto, expValue, nombre }) {
   setK(labels4[3], 'Web');
   setK(K.document.querySelectorAll('textarea')[3], 'https://ejemplo.com/login?x=1');
   await sleep(120);
-  check('detecta la URL al escribirla', K.document.body.textContent.includes('detectada ✓'));
+  check('detecta la URL al escribirla', K.document.body.textContent.includes('🔗 enlace'));
   // limite de campos: no se puede pasar de MAX_FIELDS
   const addBtnK = () => [...K.document.querySelectorAll('button')].find(b => b.textContent.includes('Añadir campo'));
   for (let n = 0; n < 12; n++) { if (!addBtnK().disabled) { addBtnK().click(); await sleep(30); } }
@@ -243,12 +267,8 @@ async function generar(w, { texto, expValue, nombre }) {
   }
   check('quitar campos deja los 4 con datos', K.document.querySelectorAll('textarea').length === 4,
     'textareas=' + K.document.querySelectorAll('textarea').length);
-  // marcar el segundo como contraseña
-  const kinds = [...K.document.querySelectorAll('select')].filter(s => [...s.options].some(o => o.value === 'password'));
-  check('selector de tipo por campo', kinds.length === 4, 'selects=' + kinds.length);
-  const k2 = kinds[1];
-  k2.value = 'password';
-  k2.dispatchEvent(new K.Event('change', { bubbles: true }));
+  check('sin selector de tipo por campo', ![...K.document.querySelectorAll('select')].some(s => s.textContent.includes('Contraseña')));
+  check('sin checkbox de URL manual', !K.document.querySelector('input[type="checkbox"]'));
   await sleep(700);
   let urlK = '';
   [...K.document.querySelectorAll('button')].find(b => b.textContent.includes('Generar Enlace')).click();
@@ -275,12 +295,12 @@ async function generar(w, { texto, expValue, nombre }) {
   check('etiqueta Email visible', txtL.includes('Email'));
   check('etiqueta Contraseña visible', txtL.includes('Contraseña'));
   check('etiqueta Nota visible', txtL.includes('Nota'));
-  check('campo password llega oculto', !!L.document.querySelector('input[type="password"][readonly]'));
+  check('los campos no llegan enmascarados', !L.document.querySelector('input[type="password"][readonly]'));
   const linkAbrir = [...L.document.querySelectorAll('a')].find(a => a.textContent.includes('Abrir'));
   check('boton Abrir para la URL', !!linkAbrir && linkAbrir.getAttribute('href') === 'https://ejemplo.com/login?x=1',
     linkAbrir && linkAbrir.getAttribute('href'));
   check('URL tambien como enlace clicable', !!L.document.querySelector('a.text-break[href^="https://ejemplo.com"]'));
-  check('aviso de contraseña oculta', txtL.includes('Contraseña oculta por si alguien mira la pantalla'));
+  check('URL automatica sin marcar nada', txtL.includes('Abrir'));
 
   // Copiar cada campo por separado
   const rows = [...L.document.querySelectorAll('.campo-label')];
@@ -301,13 +321,6 @@ async function generar(w, { texto, expValue, nombre }) {
   check('copiar solo la contrasena', clipL.text === 'P@ssw0rd-ñ-123', JSON.stringify(clipL.text));
   botonDe('Nota').click(); await sleep(150);
   check('copiar solo la nota', clipL.text === 'válido hasta el viernes', JSON.stringify(clipL.text));
-
-  // Mostrar la contraseña del campo
-  const rowPwd = bloqueDe('Contraseña');
-  [...rowPwd.querySelectorAll('button')].find(b => b.textContent.includes('👁️')).click();
-  await sleep(120);
-  const visible = [...rowPwd.querySelectorAll('input')].some(i => i.type === 'text' && i.value === 'P@ssw0rd-ñ-123');
-  check('ojo revela la contrasena del campo', visible);
 
   // Copiar todo
   [...L.document.querySelectorAll('button')].find(b => b.textContent.includes('Copiar todo')).click();
@@ -349,6 +362,29 @@ async function generar(w, { texto, expValue, nombre }) {
     (preN && preN.textContent.slice(0, 40)) + ' | ' + campoN.slice(0, 40));
   check('texto unico ofrece copiar', [...N.document.querySelectorAll('button')].some(b => b.textContent.includes('Copiar')));
   check('texto unico no dice "Copiar todo"', !txtN.includes('Copiar todo'));
+
+  // ---------- M. Enlace antiguo con campos tipados (kind/autoUrl) ----------
+  const viejo = await makeLink(JSON.stringify([
+    { label: 'Email', value: 'viejo@ejemplo.com', kind: 'text', autoUrl: true },
+    { label: 'Clave', value: 'secreta-123', kind: 'password', autoUrl: false },
+    { label: 'Web', value: 'https://ejemplo.com', kind: 'text', autoUrl: true }
+  ]), 'clave-segura-123');
+  const { w: O } = makePage(viejo, []);
+  await sleep(500);
+  setVal(O, O.document.querySelector('input[type="password"]'), 'clave-segura-123');
+  [...O.document.querySelectorAll('button')].find(b => b.textContent.includes('Desbloquear')).click();
+  for (let i = 0; i < 120; i++) { await sleep(100); if (O.document.querySelectorAll('.campo-label').length) break; }
+  const txtO = O.document.body.textContent.replace(/\s+/g, ' ');
+  check('enlace viejo: 3 campos', O.document.querySelectorAll('.campo-label').length === 3,
+    'campos=' + O.document.querySelectorAll('.campo-label').length);
+  check('enlace viejo: password sigue oculta', !!O.document.querySelector('input[type="password"][readonly]'));
+  check('enlace viejo: URL con autoUrl true abre', [...O.document.querySelectorAll('a')].some(a => a.getAttribute('href') === 'https://ejemplo.com'));
+  check('enlace viejo: autoUrl false no abre la clave', ![...O.document.querySelectorAll('a')].some(a => a.getAttribute('href') === 'secreta-123'));
+  const rowPwdO = [...O.document.querySelectorAll('.campo-label')].find(e => e.textContent.trim() === 'Clave').closest('.border.rounded.p-2');
+  [...rowPwdO.querySelectorAll('button')].find(b => b.textContent.includes('👁️')).click();
+  await sleep(120);
+  check('enlace viejo: el ojo revela la contrasena',
+    [...rowPwdO.querySelectorAll('input')].some(i => i.type === 'text' && i.value === 'secreta-123'));
 
   const failed = results.filter(r => !r.ok);
   console.log('\n' + (results.length - failed.length) + '/' + results.length + ' comprobaciones OK');

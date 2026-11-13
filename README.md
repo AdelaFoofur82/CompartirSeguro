@@ -8,9 +8,10 @@ el contenido cifrado viaja en la propia URL, así que nada se guarda en ningún 
 ## Qué hace
 
 - Eliges el tipo de contenido: **campos con nombre** (email, contraseña, URL…), **texto libre** o **archivo**.
-- En modo campos puedes añadir y quitar campos (hasta 10), ponerle nombre a cada uno y marcarlo como
-  contraseña (llega oculta) o como URL (se convierte en enlace con botón «Abrir»). Cada campo tiene su
-  propio botón de copiar, y arriba hay un «Copiar todo».
+- En modo campos cada campo es solo **nombre y valor**: añades y quitas los que quieras (hasta 10).
+  Si un valor es una URL (`http://` o `https://`) se detecta solo y al abrirlo sale como enlace, con
+  botón «Abrir», sin dejar de poder copiarse. Cada campo tiene su botón de copiar y arriba hay un
+  «Copiar todo».
 - Le pones una **contraseña** y una **caducidad**.
 - La app comprime, cifra y empaqueta todo en el fragmento (`#...`) del enlace.
 - Le pasas el enlace por donde quieras (cabe en un mensaje de Telegram) y la contraseña **por otro canal**.
@@ -42,12 +43,14 @@ payload               texto, JSON de campos o archivo (comprimido si "compressed
 El payload de tipo `fields` es una lista JSON:
 
 ```json
-[{"label":"Email","value":"adela@ejemplo.com","kind":"text","autoUrl":true},
- {"label":"Contraseña","value":"P@ssw0rd","kind":"password","autoUrl":true},
- {"label":"Web","value":"https://ejemplo.com","kind":"text","autoUrl":true}]
+[{"label":"Email","value":"adela@ejemplo.com"},
+ {"label":"Contraseña","value":"P@ssw0rd"},
+ {"label":"Web","value":"https://ejemplo.com"}]
 ```
 
-Los enlaces antiguos (payload de texto plano) se siguen abriendo: se muestran como un único campo.
+Los enlaces antiguos se siguen abriendo: los de payload de texto plano se muestran como un único campo,
+y los que llevaban `kind: "password"` o `autoUrl: false` mantienen ese comportamiento (valor oculto
+tras el ojo, sin convertir a enlace) aunque la interfaz ya no ofrezca esas opciones.
 
 `exp` es la fecha de caducidad en milisegundos. Va **cifrada**, así que nadie sabe cuándo caduca
 un enlace sin la contraseña.

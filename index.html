@@ -75,23 +75,12 @@
                                 <div class="d-flex gap-2 align-items-center mb-1">
                                     <input type="text" v-model="f.label" class="form-control form-control-sm"
                                            :placeholder="i === 0 ? 'Nombre (ej: Email)' : 'Nombre (ej: Contraseña)'">
-                                    <select v-model="f.kind" class="form-select form-select-sm" style="max-width: 34%;"
-                                            :title="f.kind === 'password' ? 'Se oculta hasta pulsar el ojo' : 'Se ve siempre'">
-                                        <option value="text">Texto</option>
-                                        <option value="password">Contraseña</option>
-                                    </select>
-                                    <button class="btn btn-sm btn-outline-danger" @click="removeField(i)"
+                                    <span v-if="detectUrl(f.value)" class="badge bg-success">🔗 enlace</span>
+                                    <button class="btn btn-sm btn-outline-danger ms-auto" @click="removeField(i)"
                                             :disabled="fields.length <= 1" title="Quitar este campo">🗑️</button>
                                 </div>
                                 <textarea v-model="f.value" class="form-control" rows="2"
-                                          :placeholder="f.kind === 'url' ? 'https://…' : 'Valor'"></textarea>
-                                <div class="form-check form-check-inline mt-1">
-                                    <input class="form-check-input" type="checkbox" :id="'auto-' + f.id" v-model="f.autoUrl">
-                                    <label class="form-check-label small" :for="'auto-' + f.id">
-                                        Es una URL (hacer enlace)
-                                        <span v-if="detectUrl(f.value)" class="text-success">· detectada ✓</span>
-                                    </label>
-                                </div>
+                                          placeholder="Valor"></textarea>
                             </div>
                             <button class="btn btn-sm btn-outline-primary" @click="addField"
                                     :disabled="fields.length >= MAX_FIELDS">
@@ -99,7 +88,8 @@
                             </button>
                             <small class="text-muted d-block mt-1">
                                 {{ fields.length }}/{{ MAX_FIELDS }} campos. Todo (nombres incluidos) viaja cifrado
-                                y ocupa espacio en el enlace: la barra de abajo lo cuenta.
+                                y ocupa espacio en el enlace: la barra de abajo lo cuenta. Si un valor es una URL,
+                                al abrirlo se convierte en enlace automáticamente.
                                 <span class="text-danger" v-if="fields.length >= MAX_FIELDS">Máximo alcanzado.</span>
                             </small>
                         </div>
@@ -285,7 +275,7 @@
                                     <div v-if="f.kind === 'password'" class="small text-muted mb-1">
                                         Contraseña oculta por si alguien mira la pantalla.
                                     </div>
-                                    <div class="input-group" v-if="f.kind === 'password' || !f.label">
+                                    <div class="input-group" v-if="f.kind === 'password'">
                                         <input :type="revealedFields[i] ? 'text' : 'password'" :value="f.value"
                                                class="form-control form-control-sm" readonly>
                                         <button v-if="f.kind === 'password'" class="btn btn-sm btn-outline-secondary" type="button"
@@ -438,14 +428,9 @@
         // El contenido de texto es un JSON con lista de campos: [{ "label": "Email", "value": "...", "kind": "text" }]
         // Así un enlace puede llevar email + contraseña y cada cosa se copia por separado.
         const MAX_FIELDS = 10;
-        const DEFAULT_FIELDS = [
-            { label: '', value: '', kind: 'text' },
-            { label: '', value: '', kind: 'text' }
-        ];
+        const DEFAULT_FIELDS = [{ label: '', value: '' }, { label: '', value: '' }];
         let fieldSeq = 0;
-        const newField = (label = '', value = '', kind = 'text') => ({
-            id: 'f' + (++fieldSeq), label, value, kind, autoUrl: true
-        });
+        const newField = (label = '', value = '') => ({ id: 'f' + (++fieldSeq), label, value });
 
         // ¿El valor es una URL http(s) que podamos convertir en enlace?
         function detectUrl(value) {
@@ -461,16 +446,13 @@
         const isLinkField = (f) => !!detectUrl(f.value) && f.autoUrl !== false;
 
         function serializeFields(list) {
-            const clean = list.map((f, i) => ({
+            const clean = list.map(f => ({
                 label: (f.label || '').trim(),
-                value: f.value || '',
-                kind: f.kind === 'password' ? 'password' : 'text',
-                autoUrl: f.autoUrl !== false,
-                _i: i
+                value: f.value || ''
             })).filter(f => (f.label || f.value));
             if (!clean.length) return '';
-            if (clean.length === 1 && !clean[0].label && clean[0].kind === 'text' && !detectUrl(clean[0].value)) return clean[0].value;
-            return JSON.stringify(clean.map(({ label, value, kind, autoUrl }) => ({ label, value, kind, autoUrl })));
+            if (clean.length === 1 && !clean[0].label && !detectUrl(clean[0].value)) return clean[0].value;
+            return JSON.stringify(clean);
         }
 
         // Lee el payload de texto: formato viejo = texto plano; nuevo = JSON de campos
@@ -512,7 +494,7 @@
                 const password = ref('');
                 const contentType = ref('fields');
                 const plainText = ref('');
-                const fields = ref(DEFAULT_FIELDS.map(f => newField(f.label, f.value, f.kind)));
+                const fields = ref(DEFAULT_FIELDS.map(f => newField(f.label, f.value)));
                 const selectedFile = ref(null);
                 const generatedUrl = ref('');
                 const generatedExp = ref(0);
