@@ -1,0 +1,16 @@
+{
+    "name": "Compartir Seguro",
+    "short_name": "CompartirSeguro",
+    "description": "Comparte texto y archivos cifrados mediante un enlace.",
+    "start_url": "./",
+    "display": "standalone",
+    "background_color": "#f8f9fa",
+    "theme_color": "#0d6efd",
+    "icons": [
+        {
+            "src": "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect fill='%230d6efd' width='100' height='100' rx='20'/><text x='50' y='70' font-size='50' text-anchor='middle' fill='white'>🔒</text></svg>",
+            "sizes": "any",
+            "type": "image/svg+xml"
+        }
+    ]
+}
