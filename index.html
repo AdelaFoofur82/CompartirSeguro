@@ -113,7 +113,7 @@
                                     O desde la galería / cualquier app
                                 </button>
                             </div>
-                            <input :key="fileInputKey" type="file" :accept="fileAccept || null" :disabled="isAndroid"
+                            <input :key="fileInputKey" type="file" :accept="fileAccept || null"
                                    @change="onFileChange" class="form-control" :class="isAndroid ? 'd-none' : ''">
                             <small v-if="isAndroid" class="text-muted d-block mt-1">
                                 En Android usa los botones de arriba: el selector del sistema te deja entrar
@@ -315,7 +315,7 @@
     </div>
 
     <script>
-        const { createApp, ref, watch, onMounted } = Vue;
+        const { createApp, ref, watch, nextTick, onMounted } = Vue;
 
         const REPO_URL = 'https://github.com/AdelaFoofur82/CompartirSeguro';
 
@@ -623,13 +623,12 @@
                 const fileInputKey = ref(0);
                 const MIME_ANY_FILE = '*/*';
 
-                const pickFile = (modo) => {
+                const pickFile = async (modo) => {
                     fileAccept.value = modo === 'explorer' ? MIME_ANY_FILE : '';
-                    fileInputKey.value += 1; // fuerza que el navegador recree el input con el nuevo accept
-                    setTimeout(() => {
-                        const el = document.querySelector('input[type="file"]');
-                        if (el) el.click();
-                    }, 0);
+                    fileInputKey.value += 1; // recrea el input con el nuevo accept
+                    await nextTick();        // espera a que Vue pinte el input nuevo
+                    const el = document.querySelector('input[type="file"]');
+                    if (el) el.click();
                 };
 
                 const onFileChange = (e) => { selectedFile.value = e.target.files[0]; };

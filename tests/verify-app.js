@@ -342,6 +342,66 @@ async function generar(w, { texto, expValue, nombre }) {
   check('texto unico ofrece copiar', [...N.document.querySelectorAll('button')].some(b => b.textContent.includes('Copiar')));
   check('texto unico no dice "Copiar todo"', !txtN.includes('Copiar todo'));
 
+  // ---------- P. Selector de archivo (escritorio y Android) ----------
+  const UA_ANDROID = 'Mozilla/5.0 (Linux; Android 14; Pixel 7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0 Mobile Safari/537.36';
+
+  const { w: P } = makePage('https://adelafoofur82.github.io/CompartirSeguro/');
+  await sleep(400);
+  const selTipoP = [...P.document.querySelectorAll('select')].find(x => [...x.options].some(o => o.value === 'file'));
+  selTipoP.value = 'file';
+  selTipoP.dispatchEvent(new P.Event('change', { bubbles: true }));
+  await sleep(150);
+  const fileInput = P.document.querySelector('input[type="file"]');
+  check('escritorio: selector de archivo visible', !!fileInput && !fileInput.classList.contains('d-none'));
+  check('escritorio: sin filtro de tipo',
+    !!fileInput && (!fileInput.hasAttribute('accept') || fileInput.getAttribute('accept') === 'null'),
+    fileInput && fileInput.getAttribute('accept'));
+  check('escritorio: sin botones de Android',
+    ![...P.document.querySelectorAll('button')].some(b => b.textContent.includes('Elegir desde Archivos')));
+  check('explica que el limite es el tamano', P.document.body.textContent.includes('Cualquier tipo de archivo, sin filtro de extensión'));
+
+  const { w: Q } = makePage('https://adelafoofur82.github.io/CompartirSeguro/', [], UA_ANDROID);
+  await sleep(500);
+  const selTipoQ = [...Q.document.querySelectorAll('select')].find(x => [...x.options].some(o => o.value === 'file'));
+  selTipoQ.value = 'file';
+  selTipoQ.dispatchEvent(new Q.Event('change', { bubbles: true }));
+  await sleep(150);
+  const btnArchivos = [...Q.document.querySelectorAll('button')].find(b => b.textContent.includes('Elegir desde Archivos'));
+  check('Android: boton "Elegir desde Archivos"', !!btnArchivos);
+  check('Android: alternativa de galeria',
+    [...Q.document.querySelectorAll('button')].some(b => b.textContent.includes('galería')));
+
+  // El click real tiene que acabar en un input habilitado (uno disabled ignora click())
+  let clicks = [];
+  Q.HTMLInputElement.prototype.click = function () {
+    clicks.push({ accept: this.getAttribute('accept'), disabled: this.disabled, hidden: this.classList.contains('d-none') });
+  };
+  const inputQ = () => Q.document.querySelector('input[type="file"]');
+  check('Android: el input esta oculto pero habilitado',
+    inputQ().classList.contains('d-none') && inputQ().disabled === false,
+    'hidden=' + inputQ().classList.contains('d-none') + ' disabled=' + inputQ().disabled);
+
+  btnArchivos.click();
+  await sleep(150);
+  check('Android: pulsar "Archivos" abre el selector', clicks.length === 1, 'clicks=' + clicks.length);
+  check('Android: con accept */*', clicks[0] && clicks[0].accept === '*/*', clicks[0] && clicks[0].accept);
+  check('Android: input habilitado en el click', clicks[0] && clicks[0].disabled === false);
+  check('Android: el input visible ya lleva accept */*', inputQ().getAttribute('accept') === '*/*', inputQ().getAttribute('accept'));
+
+  // Elegir fichero de verdad: adjuntar uno al input y comprobar que la app lo recoge
+  const file = new Q.File(['hola'], 'nota.txt', { type: 'text/plain' });
+  Object.defineProperty(inputQ(), 'files', { value: [file], configurable: true });
+  inputQ().dispatchEvent(new Q.Event('change', { bubbles: true }));
+  await sleep(200);
+  check('Android: el archivo elegido se muestra', Q.document.body.textContent.includes('nota.txt'),
+    Q.document.body.textContent.match(/[^ ]+\.(txt|pdf)[^ ]*/));
+
+  [...Q.document.querySelectorAll('button')].find(b => b.textContent.includes('galería')).click();
+  await sleep(150);
+  check('Android: "galeria" relanza el input', clicks.length === 2, 'clicks=' + clicks.length);
+  check('Android: galeria sin accept', clicks[1] && (clicks[1].accept === null || clicks[1].accept === 'null'),
+    clicks[1] && clicks[1].accept);
+
   const failed = results.filter(r => !r.ok);
   console.log('\n' + (results.length - failed.length) + '/' + results.length + ' comprobaciones OK');
   process.exit(failed.length ? 1 : 0);
