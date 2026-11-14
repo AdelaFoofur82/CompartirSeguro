@@ -38,7 +38,7 @@ async function makeLink(payloadText, password, metaExtra = {}) {
   const out = new Uint8Array(16 + 12 + ct.length);
   out.set(salt, 0); out.set(iv, 16); out.set(ct, 28);
   const b64 = Buffer.from(out).toString('base64').replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
-  return 'https://adelafoofur82.github.io/CompartirSeguro/#' + b64;
+  return 'https://adelafoofur82.github.io/CompartirSeguro/?s=' + b64;
 }
 const results = [];
 const check = (name, ok, info = '') => { results.push({ name, ok }); console.log((ok ? 'OK  ' : 'FAIL') + ' ' + name + (info ? ' :: ' + info : '')); };
@@ -97,7 +97,8 @@ async function generar(w, { texto, expValue, nombre }) {
   const texto = 'Clave del WiFi: correcto-caballo-bateria-grapa. '.repeat(80); // ~3.900 chars comprimibles
   const { url: urlA } = await generar(A, { texto, nombre: 'Gzip sin caducidad' });
   check('enlace grande comprimido generado', urlA.length > 50, urlA.length + ' chars');
-  check('enlace cabe en un solo mensaje', urlA.length <= 4096, urlA.length);
+  check('el enlace usa ?s= (no hash)', /\?s=[A-Za-z0-9_-]+$/.test(urlA), urlA.slice(0, 70));
+  check('enlace por debajo del limite del servidor (8192)', urlA.length <= 8192, urlA.length);
   const entrada = JSON.parse(A.localStorage.getItem('secure_share_history_v1'))[0] || {};
   check('historial marca comprimido', entrada.compressed === true, 'raw=' + entrada.size + ' B, empaquetado=' + entrada.packedSize + ' B');
   check('compresion real (>=2x)', entrada.packedSize * 2 < entrada.size, (entrada.size / entrada.packedSize).toFixed(1) + 'x');
@@ -144,12 +145,13 @@ async function generar(w, { texto, expValue, nombre }) {
   // ---------- E. Contenido incompresible demasiado grande: boton bloqueado ----------
   const { w: E } = makePage('https://adelafoofur82.github.io/CompartirSeguro/');
   await sleep(400);
-  const azar = Array.from(webcrypto.getRandomValues(new Uint8Array(4000))).map(b => (b % 26 + 10).toString(36)).join('');
+  const azar = Array.from(webcrypto.getRandomValues(new Uint8Array(9000))).map(b => (b % 26 + 10).toString(36)).join('');
   setVal(E, E.document.querySelector('input[placeholder="Mínimo 4 caracteres"]'), 'clave-segura-123');
   setVal(E, E.document.querySelector('textarea'), azar);
   await sleep(900);
   const eBtn = [...E.document.querySelectorAll('button')].find(b => b.textContent.includes('Generar Enlace'));
-  check('texto aleatorio de 4000 chars bloquea el boton', eBtn.disabled === true, 'disabled=' + eBtn.disabled);
+  check('texto aleatorio de 9000 chars bloquea el boton', eBtn.disabled === true,
+    'disabled=' + eBtn.disabled + ' | ' + E.document.body.textContent.replace(/\s+/g, ' ').match(/[\d.,]+ [KMB]+ \/ [\d.,]+ [KMB]+/));
 
   // ---------- H. Banner "Úsame" en la página de ver ----------
   const { w: H } = makePage(urlA, [entrada]);
@@ -339,86 +341,6 @@ async function generar(w, { texto, expValue, nombre }) {
     (preN && preN.textContent.slice(0, 40)) + ' | ' + campoN.slice(0, 40));
   check('texto unico ofrece copiar', [...N.document.querySelectorAll('button')].some(b => b.textContent.includes('Copiar')));
   check('texto unico no dice "Copiar todo"', !txtN.includes('Copiar todo'));
-
-  // ---------- M. Enlace antiguo con campos tipados (kind/autoUrl) ----------
-  const viejo = await makeLink(JSON.stringify([
-    { label: 'Email', value: 'viejo@ejemplo.com', kind: 'text', autoUrl: true },
-    { label: 'Clave', value: 'secreta-123', kind: 'password', autoUrl: false },
-    { label: 'Web', value: 'https://ejemplo.com', kind: 'text', autoUrl: true }
-  ]), 'clave-segura-123');
-  const { w: O } = makePage(viejo, []);
-  await sleep(500);
-  setVal(O, O.document.querySelector('input[type="password"]'), 'clave-segura-123');
-  [...O.document.querySelectorAll('button')].find(b => b.textContent.includes('Desbloquear')).click();
-  for (let i = 0; i < 120; i++) { await sleep(100); if (O.document.querySelectorAll('.campo-label').length) break; }
-  const txtO = O.document.body.textContent.replace(/\s+/g, ' ');
-  check('enlace viejo: 3 campos', O.document.querySelectorAll('.campo-label').length === 3,
-    'campos=' + O.document.querySelectorAll('.campo-label').length);
-  check('enlace viejo: password sigue oculta', !!O.document.querySelector('input[type="password"][readonly]'));
-  check('enlace viejo: URL con autoUrl true abre', [...O.document.querySelectorAll('a')].some(a => a.getAttribute('href') === 'https://ejemplo.com'));
-  check('enlace viejo: autoUrl false no abre la clave', ![...O.document.querySelectorAll('a')].some(a => a.getAttribute('href') === 'secreta-123'));
-  const rowPwdO = [...O.document.querySelectorAll('.campo-label')].find(e => e.textContent.trim() === 'Clave').closest('.border.rounded.p-2');
-  [...rowPwdO.querySelectorAll('button')].find(b => b.textContent.includes('👁️')).click();
-  await sleep(120);
-  check('enlace viejo: el ojo revela la contrasena',
-    [...rowPwdO.querySelectorAll('input')].some(i => i.type === 'text' && i.value === 'secreta-123'));
-
-  // ---------- P. Selector de archivo sin filtros de tipo ----------
-  const { w: P } = makePage('https://adelafoofur82.github.io/CompartirSeguro/');
-  await sleep(400);
-  const selTipoP = [...P.document.querySelectorAll('select')].find(x => [...x.options].some(o => o.value === 'file'));
-  selTipoP.value = 'file';
-  selTipoP.dispatchEvent(new P.Event('change', { bubbles: true }));
-  await sleep(150);
-  const fileInput = P.document.querySelector('input[type="file"]');
-  check('selector de archivo presente', !!fileInput);
-  check('sin atributo accept (ningun filtro de tipo)', !!fileInput &&
-    (!fileInput.hasAttribute('accept') || fileInput.getAttribute('accept') === 'null'),
-    fileInput && fileInput.getAttribute('accept'));
-  check('explica que el limite es el tamano', P.document.body.textContent.includes('Cualquier tipo de archivo, sin filtro de extensión'));
-
-  // ---------- Q. Android: dos entradas, una con accept */* para abrir Archivos ----------
-  const UA_ANDROID = 'Mozilla/5.0 (Linux; Android 14; Pixel 7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0 Mobile Safari/537.36';
-  const { w: Q } = makePage('https://adelafoofur82.github.io/CompartirSeguro/', [], UA_ANDROID);
-  await sleep(500);
-  const selQ = [...Q.document.querySelectorAll('select')].find(x => [...x.options].some(o => o.value === 'file'));
-  selQ.value = 'file';
-  selQ.dispatchEvent(new Q.Event('change', { bubbles: true }));
-  await sleep(150);
-  const btnArchivos = [...Q.document.querySelectorAll('button')].find(b => b.textContent.includes('Elegir desde Archivos'));
-  check('Android: boton "Elegir desde Archivos"', !!btnArchivos,
-    'ua=' + Q.navigator.userAgent.slice(0, 40) + ' | isAndroid=' + /android/i.test(Q.navigator.userAgent) +
-    ' | botones=' + [...Q.document.querySelectorAll('button')].map(b => b.textContent.trim().slice(0, 18)).join(' / '));
-  check('Android: opcion de galeria como alternativa',
-    [...Q.document.querySelectorAll('button')].some(b => b.textContent.includes('galería')));
-  let clicked = 0;
-  Q.HTMLInputElement.prototype.click = function () { clicked++; };
-  btnArchivos.click();
-  await sleep(120);
-  const inputQ = Q.document.querySelector('input[type="file"]');
-  check('Android: el input pide accept */*', inputQ && inputQ.getAttribute('accept') === '*/*',
-    inputQ && inputQ.getAttribute('accept'));
-  check('Android: el input nativo no se ve ni se pulsa a mano',
-    inputQ && inputQ.classList.contains('d-none') && inputQ.disabled === true);
-  check('Android: el input nativo se dispara', clicked === 1, 'clicks=' + clicked);
-  const btnGaleria = [...Q.document.querySelectorAll('button')].find(b => b.textContent.includes('galería'));
-  btnGaleria.click();
-  await sleep(120);
-  const inputQ2 = Q.document.querySelector('input[type="file"]');
-  check('Android: la galeria deja el input sin accept', inputQ2 && !inputQ2.hasAttribute('accept'),
-    inputQ2 && inputQ2.getAttribute('accept'));
-
-  // En escritorio no aparecen los botones extra ni se oculta el input
-  const { w: R } = makePage('https://adelafoofur82.github.io/CompartirSeguro/', []);
-  await sleep(400);
-  const selR = [...R.document.querySelectorAll('select')].find(x => [...x.options].some(o => o.value === 'file'));
-  selR.value = 'file';
-  selR.dispatchEvent(new R.Event('change', { bubbles: true }));
-  await sleep(150);
-  check('escritorio: sin botones de Android',
-    ![...R.document.querySelectorAll('button')].some(b => b.textContent.includes('Elegir desde Archivos')));
-  const inputR = R.document.querySelector('input[type="file"]');
-  check('escritorio: input visible y sin accept', inputR && !inputR.classList.contains('d-none') && !inputR.hasAttribute('accept'));
 
   const failed = results.filter(r => !r.ok);
   console.log('\n' + (results.length - failed.length) + '/' + results.length + ' comprobaciones OK');

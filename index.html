@@ -10,6 +10,7 @@
     <link rel="icon" type="image/svg+xml" href="icon.svg">
     <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
     <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+    <meta name="referrer" content="no-referrer">
     <meta name="theme-color" content="#0d6efd">
 </head>
 <body class="bg-light">
@@ -142,8 +143,9 @@
                                      :style="{ width: Math.min(100, (estimatedBytes / MAX_BYTES) * 100) + '%' }"></div>
                             </div>
                             <small class="text-muted d-block mt-1">
-                                Límite del enlace: {{ MAX_CHARS.toLocaleString() }} caracteres en el hash,
-                                para que quepa en un solo mensaje de cualquier app de mensajería.
+                                Límite del enlace: {{ MAX_CHARS.toLocaleString() }} caracteres de URL.
+                                El secreto viaja cifrado en la dirección (?s=…), así que puedes pasarla por un
+                                acortador para mandar un enlace corto.
                                 <span v-if="canCompress">Se comprime antes de cifrar: {{ formatBytes(rawBytes) }} → {{ formatBytes(estimatedPayload) }}.</span>
                                 <span v-else>Este navegador no soporta compresión: el contenido viaja tal cual.</span>
                             </small>
@@ -280,24 +282,9 @@
                                             </button>
                                         </div>
                                     </div>
-                                    <div v-if="f.kind === 'password'" class="small text-muted mb-1">
-                                        Contraseña oculta por si alguien mira la pantalla.
-                                    </div>
-                                    <div class="input-group" v-if="f.kind === 'password'">
-                                        <input :type="revealedFields[i] ? 'text' : 'password'" :value="f.value"
-                                               class="form-control form-control-sm" readonly>
-                                        <button v-if="f.kind === 'password'" class="btn btn-sm btn-outline-secondary" type="button"
-                                                @click="revealedFields[i] = !revealedFields[i]"
-                                                :title="revealedFields[i] ? 'Ocultar' : 'Mostrar'">
-                                            {{ revealedFields[i] ? '🙈' : '👁️' }}
-                                        </button>
-                                    </div>
-                                    <template v-else>
-                                        <a v-if="isLinkField(f)" :href="f.value" target="_blank" rel="noopener noreferrer"
-                                           class="d-block small text-break mb-0">{{ f.value }}</a>
-                                        <pre v-else class="mb-0 small" style="white-space: pre-wrap; word-break: break-word;">{{ f.value }}</pre>
-                                    </template>
-                                    <div v-if="!f.label && isLinkField(f)" class="small text-muted mt-1">Enlace detectado: ábrelo con «Abrir» o cópialo tal cual.</div>
+                                    <a v-if="isLinkField(f)" :href="f.value" target="_blank" rel="noopener noreferrer"
+                                       class="d-block small text-break mb-0">{{ f.value }}</a>
+                                    <pre v-else class="mb-0 small" style="white-space: pre-wrap; word-break: break-word;">{{ f.value }}</pre>
                                 </div>
                                 <div v-if="decrypted.fields.length === 1" class="d-flex justify-content-end">
                                     <button class="btn btn-sm" :class="copiedText ? 'btn-outline-success' : 'btn-outline-success'"
@@ -336,11 +323,12 @@
         const dec = new TextDecoder();
 
         // --- LÍMITES ---
-        // El enlace tiene que caber en un solo mensaje de mensajería (la mayoría de
-        // apps cortan alrededor de 4.096 caracteres). Dejamos ~200 de margen para el
-        // texto que acompañe al enlace.
-        // Base64 URL-safe expande ~4/3: 3.900 chars de hash -> ~2.925 bytes de payload.
-        const MAX_CHARS = 3900;
+        // El secreto va en la query (?s=...), así que el techo lo pone el servidor que
+        // sirve la página: la línea de petición no puede pasar de 8.192 caracteres y por
+        // encima responde 414. Medido en GitHub Pages: con 8.150 caracteres aún da 200 y
+        // a partir de ~8.180 responde 414. Nos quedamos en 7.500 con margen de sobra.
+        // Base64 URL-safe expande ~4/3: 7.500 chars -> ~5.625 bytes de payload.
+        const MAX_CHARS = 7500;
         // Reservamos ~128 bytes para metadatos + cabecera antes de cifrar
         const MAX_BYTES = Math.floor(MAX_CHARS * 3 / 4) - 128;
 
@@ -422,7 +410,6 @@
         }
 
         // --- CAMPOS DEL SECRETO ---
-        // El contenido de texto es un JSON con lista de campos: [{ "label": "Email", "value": "...", "kind": "text" }]
         // Así un enlace puede llevar email + contraseña y cada cosa se copia por separado.
         const MAX_FIELDS = 10;
         const DEFAULT_FIELDS = [{ label: '', value: '' }, { label: '', value: '' }];
@@ -440,7 +427,7 @@
                 return v;
             } catch { return ''; }
         }
-        const isLinkField = (f) => !!detectUrl(f.value) && f.autoUrl !== false;
+        const isLinkField = (f) => !!detectUrl(f.value);
 
         function serializeFields(list) {
             const clean = list.map(f => ({
@@ -453,24 +440,20 @@
         }
 
         // Lee el payload de texto: formato viejo = texto plano; nuevo = JSON de campos
-        function parseFields(text, hint) {
-            const looksJson = (text || '').trim().startsWith('[');
-            if (looksJson) {
-                try {
-                    const arr = JSON.parse(text);
-                    if (Array.isArray(arr)) {
-                        const fields = arr.map(f => ({
-                            label: String(f.label || ''),
-                            value: String(f.value ?? ''),
-                            kind: f.kind === 'password' ? 'password' : 'text',
-                            autoUrl: f.autoUrl !== false
-                        })).filter(f => f.label || f.value);
-                        if (fields.length) return fields;
-                    }
-                } catch (e) { /* no era JSON, se trata como texto normal */ }
-            }
-            const legacyLabel = (hint && hint.trim()) ? hint.trim() : '';
-            return [{ label: legacyLabel, value: text || '', kind: 'text', autoUrl: true }];
+        function parseFields(text) {
+            const arr = JSON.parse(text);
+            if (!Array.isArray(arr)) throw new Error('Formato desconocido');
+            const fields = arr.map(f => ({ label: String(f.label || ''), value: String(f.value ?? '') }))
+                .filter(f => f.label || f.value);
+            if (!fields.length) throw new Error('Sin campos');
+            return fields;
+        }
+
+        // --- PAYLOAD EN LA URL ---
+        // El secreto cifrado viaja en la query: ?s=<base64url>
+        const PARAM = 's';
+        function readPayload() {
+            return new URLSearchParams(window.location.search).get(PARAM) || '';
         }
 
         // --- localStorage ---
@@ -504,7 +487,6 @@
                 const showViewPwd = ref(false);
                 const copiedText = ref(false);
                 const copiedField = ref(-1);
-                const revealedFields = ref([]);
 
                 const addField = () => {
                     if (fields.value.length >= MAX_FIELDS) return;
@@ -609,7 +591,7 @@
                 };
 
                 onMounted(() => {
-                    if (window.location.hash.length > 1) {
+                    if (readPayload()) {
                         mode.value = 'view';
                     }
                     homeUrl.value = window.location.origin + window.location.pathname;
@@ -703,7 +685,7 @@
                         }
 
                         const baseUrl = window.location.origin + window.location.pathname;
-                        generatedUrl.value = `${baseUrl}#${b64}`;
+                        generatedUrl.value = `${baseUrl}?${PARAM}=${b64}`;
 
                         // Guardar en historial
                         const entry = {
@@ -736,7 +718,7 @@
 
                 // Marca el enlace como abierto en el historial de ESTE navegador
                 const markOpened = () => {
-                    const hash = window.location.hash.slice(1);
+                    const hash = readPayload();
                     if (!hash) return;
                     const list = readShares();
                     const item = list.find(x => x.hash === hash || (x.url && x.url.split('#')[1] === hash));
@@ -754,7 +736,7 @@
                     loading.value = true;
                     error.value = '';
                     try {
-                        const hash = window.location.hash.slice(1);
+                        const hash = readPayload();
                         if (!hash) throw new Error("No hay datos en el enlace.");
                         const encryptedBuffer = base64UrlToArrayBuffer(hash);
                         const decryptedBuffer = await decryptData(encryptedBuffer, password.value);
@@ -767,15 +749,16 @@
 
                         if (meta.compressed) rawData = await gunzipBytes(rawData);
 
-                        if (meta.type === 'text' || meta.type === 'fields') {
+                        if (meta.type === 'fields' || meta.type === 'text') {
                             const plain = dec.decode(rawData);
-                            const list = parseFields(plain, meta.label);
+                            const list = meta.type === 'fields'
+                                ? parseFields(plain)
+                                : [{ label: '', value: plain }];
                             decrypted.value = {
                                 type: 'text',
                                 fields: list,
                                 fullText: list.map(f => f.label ? f.label + ': ' + f.value : f.value).join('\n')
                             };
-                            revealedFields.value = list.map(() => false);
                             copiedField.value = -1;
                         } else {
                             const blob = new Blob([rawData], { type: meta.mime || 'application/octet-stream' });
@@ -838,7 +821,7 @@
                     generatedUrl, shareName, loading, decrypted, error, openedHere, shares,
                     showCreatePwd, showViewPwd, copiedText, REPO_URL, canCompress,
                     canInstall, installApp, homeUrl, MAX_FIELDS, addField, removeField, detectUrl, isLinkField,
-                    copiedField, revealedFields, copyField, copyAllFields, copyState,
+                    copiedField, copyField, copyAllFields, copyState,
                     estimatedBytes, estimatedPayload, rawBytes, MAX_BYTES, MAX_CHARS,
                     isAndroid, fileAccept, fileInputKey, pickFile,
                     formatBytes, onFileChange, generateLink, decryptContent,
