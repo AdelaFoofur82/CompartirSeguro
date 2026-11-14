@@ -100,6 +100,11 @@
                         </div>
                         <div v-if="contentType === 'file'" class="mb-3">
                             <input type="file" @change="onFileChange" class="form-control">
+                            <small class="text-muted d-block mt-1">
+                                Cualquier tipo de archivo, sin filtro: el límite lo pone el tamaño del enlace,
+                                no la extensión. Los archivos grandes no caben (y las fotos y vídeos son justo
+                                los que más pesan); un PDF, un CSV o un .txt corto sí.
+                            </small>
                         </div>
 
                         <!-- Barra de tamaño estimado -->

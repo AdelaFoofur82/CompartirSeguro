@@ -361,6 +361,19 @@ async function generar(w, { texto, expValue, nombre }) {
   check('enlace viejo: el ojo revela la contrasena',
     [...rowPwdO.querySelectorAll('input')].some(i => i.type === 'text' && i.value === 'secreta-123'));
 
+  // ---------- P. Selector de archivo sin filtros de tipo ----------
+  const { w: P } = makePage('https://adelafoofur82.github.io/CompartirSeguro/');
+  await sleep(400);
+  const selTipoP = [...P.document.querySelectorAll('select')].find(x => [...x.options].some(o => o.value === 'file'));
+  selTipoP.value = 'file';
+  selTipoP.dispatchEvent(new P.Event('change', { bubbles: true }));
+  await sleep(150);
+  const fileInput = P.document.querySelector('input[type="file"]');
+  check('selector de archivo presente', !!fileInput);
+  check('sin atributo accept (ningun filtro de tipo)', !!fileInput && !fileInput.hasAttribute('accept'),
+    fileInput && fileInput.getAttribute('accept'));
+  check('explica que el limite es el tamano', P.document.body.textContent.includes('Cualquier tipo de archivo, sin filtro'));
+
   const failed = results.filter(r => !r.ok);
   console.log('\n' + (results.length - failed.length) + '/' + results.length + ' comprobaciones OK');
   process.exit(failed.length ? 1 : 0);

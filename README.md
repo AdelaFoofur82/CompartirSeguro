@@ -7,7 +7,8 @@ el contenido cifrado viaja en la propia URL, así que nada se guarda en ningún 
 
 ## Qué hace
 
-- Eliges el tipo de contenido: **campos con nombre** (email, contraseña, URL…), **texto libre** o **archivo**.
+- Eliges el tipo de contenido: **campos con nombre** (email, contraseña, URL…), **texto libre** o **archivo**
+  (cualquier tipo, sin filtro: lo que limita es el tamaño, no la extensión).
 - En modo campos cada campo es solo **nombre y valor**: añades y quitas los que quieras (hasta 10).
   Si un valor es una URL (`http://` o `https://`) se detecta solo y al abrirlo sale como enlace, con
   botón «Abrir», sin dejar de poder copiarse. Cada campo tiene su botón de copiar y arriba hay un
