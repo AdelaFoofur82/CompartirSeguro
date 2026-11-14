@@ -162,6 +162,8 @@
                             <div class="input-group">
                                 <input type="text" :value="generatedUrl" class="form-control" readonly>
                                 <button class="btn btn-outline-secondary" @click="copyUrl(generatedUrl)">Copiar</button>
+                                <button v-if="canShare" class="btn btn-primary" @click="shareUrl(generatedUrl, shareName)"
+                                        title="Compartir con otra app">📤 Compartir</button>
                             </div>
                             <small class="text-muted d-block">Guardado en tus compartidos.</small>
                         </div>
@@ -214,6 +216,8 @@
                                     </div>
                                 </div>
                                 <div class="btn-group btn-group-sm">
+                                    <button v-if="canShare" class="btn btn-outline-success" @click="shareUrl(s.url, s.name)"
+                                            title="Compartir">📤</button>
                                     <button class="btn btn-outline-primary" @click="copyUrl(s.url)" title="Copiar">📋</button>
                                     <button class="btn btn-outline-secondary" @click="startRename(s)" title="Renombrar">✏️</button>
                                     <button class="btn btn-outline-danger" @click="deleteShare(s.id)" title="Eliminar">🗑️</button>
@@ -773,6 +777,21 @@
                     }
                 };
 
+                // Web Share: solo aparece si el navegador lo ofrece (móvil casi siempre)
+                const canShare = ref(typeof navigator !== 'undefined' && typeof navigator.share === 'function');
+                const shareUrl = async (url, nombre) => {
+                    if (!canShare.value) return;
+                    try {
+                        await navigator.share({
+                            title: nombre || 'Compartir Seguro',
+                            text: nombre ? nombre : 'Te comparto un secreto',
+                            url: url
+                        });
+                    } catch (e) {
+                        // el usuario canceló o la app no aceptó el contenido: no hay nada que hacer
+                    }
+                };
+
                 const copyUrl = async (url) => {
                     try {
                         await navigator.clipboard.writeText(url);
@@ -824,7 +843,7 @@
                     estimatedBytes, estimatedPayload, rawBytes, MAX_BYTES, MAX_CHARS,
                     isAndroid, fileAccept, fileInputKey, pickFile,
                     formatBytes, onFileChange, generateLink, decryptContent,
-                    copyUrl, copyText, loadShares, startRename, saveRename, deleteShare,
+                    copyUrl, copyText, canShare, shareUrl, loadShares, startRename, saveRename, deleteShare,
                     openedLabel
                 };
             }

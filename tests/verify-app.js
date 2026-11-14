@@ -43,13 +43,19 @@ async function makeLink(payloadText, password, metaExtra = {}) {
 const results = [];
 const check = (name, ok, info = '') => { results.push({ name, ok }); console.log((ok ? 'OK  ' : 'FAIL') + ' ' + name + (info ? ' :: ' + info : '')); };
 
-function makePage(url, seedShares, ua) {
+function makePage(url, seedShares, ua, withShare) {
   const vc = new VirtualConsole();
   vc.on('jsdomError', e => console.log('JSDOM ERROR:', e.message));
   const opts = { url, runScripts: 'dangerously', virtualConsole: vc, pretendToBeVisual: true };
   const dom = new JSDOM(html, opts);
   const w = dom.window;
   if (ua) Object.defineProperty(w.navigator, 'userAgent', { value: ua, configurable: true });
+  const shared = [];
+  if (withShare) {
+    Object.defineProperty(w.navigator, 'share', {
+      value: async (data) => { shared.push(data); }, configurable: true
+    });
+  }
   Object.defineProperty(w, 'crypto', { value: webcrypto, configurable: true });
   w.Blob = Blob;
   w.Response = globalThis.Response;
@@ -64,7 +70,7 @@ function makePage(url, seedShares, ua) {
   if (seedShares) w.localStorage.setItem('secure_share_history_v1', JSON.stringify(seedShares));
   w.eval(vueSrc);
   w.eval(appSrc);
-  return { w, clip };
+  return { w, clip, shared };
 }
 
 const setVal = (w, el, v) => { el.value = v; el.dispatchEvent(new w.Event('input', { bubbles: true })); };
@@ -401,6 +407,40 @@ async function generar(w, { texto, expValue, nombre }) {
   check('Android: "galeria" relanza el input', clicks.length === 2, 'clicks=' + clicks.length);
   check('Android: galeria sin accept', clicks[1] && (clicks[1].accept === null || clicks[1].accept === 'null'),
     clicks[1] && clicks[1].accept);
+
+  // ---------- S. Compartir con Web Share ----------
+  const { w: S, shared } = makePage('https://adelafoofur82.github.io/CompartirSeguro/', [], null, true);
+  await sleep(500);
+  setVal(S, S.document.querySelector('input[placeholder="Mínimo 4 caracteres"]'), 'clave-segura-123');
+  setVal(S, S.document.querySelectorAll('textarea')[0], 'comparte esto');
+  await sleep(600);
+  [...S.document.querySelectorAll('button')].find(b => b.textContent.includes('Generar Enlace')).click();
+  let urlS = '';
+  for (let i = 0; i < 120; i++) {
+    await sleep(100);
+    const inp = [...S.document.querySelectorAll('input[readonly]')].find(x => x.value.startsWith('http'));
+    if (inp) { urlS = inp.value; break; }
+  }
+  const btnCompartir = () => [...S.document.querySelectorAll('button')].find(b => b.textContent.includes('Compartir'));
+  check('con Web Share: boton Compartir visible junto al enlace', !!btnCompartir());
+  btnCompartir().click();
+  await sleep(200);
+  check('compartir envia la url por navigator.share', shared.length === 1 && shared[0].url === urlS,
+    shared.length ? shared[0].url.slice(0, 50) : 'no se llamó');
+  check('compartir manda texto ademas de la url', !!(shared[0] && shared[0].text), shared[0] && shared[0].text);
+  check('compartir conserva el enlace en el campo', [...S.document.querySelectorAll('input[readonly]')].some(i => i.value === urlS));
+
+  // En el historial tambien hay boton de compartir
+  [...S.document.querySelectorAll('button')].find(b => b.textContent.includes('Mis compartidos')).click();
+  await sleep(120);
+  check('historial: boton compartir por enlace',
+    [...S.document.querySelectorAll('button')].some(b => b.title === 'Compartir'));
+
+  // Sin soporte: no se muestra nada
+  const { w: T } = makePage('https://adelafoofur82.github.io/CompartirSeguro/');
+  await sleep(400);
+  check('sin Web Share: no hay boton Compartir',
+    ![...T.document.querySelectorAll('button')].some(b => b.textContent.includes('Compartir')));
 
   const failed = results.filter(r => !r.ok);
   console.log('\n' + (results.length - failed.length) + '/' + results.length + ' comprobaciones OK');

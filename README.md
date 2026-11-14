@@ -18,7 +18,8 @@ el contenido cifrado viaja en la propia URL, así que nada se guarda en ningún 
 - Le pasas el enlace por donde quieras (cabe en un solo mensaje) y la contraseña **por otro canal**.
 - Quien lo recibe abre el enlace, mete la contraseña y ve el texto o descarga el archivo.
 
-Extra: botón de copiar en cada campo (y «Copiar todo»), ojo 🙈/👁️ para ver la contraseña mientras la escribes,
+Extra: botón de copiar en cada campo (y «Copiar todo»), **compartir nativo** del enlace con la hoja del sistema
+(cuando el navegador soporta Web Share, es decir casi cualquier móvil), ojo 🙈/👁️ para ver la contraseña mientras la escribes,
 historial local de lo que has compartido. La app se puede **instalar**
 (botón 📲 Instálame cuando el navegador lo permite) y la página de ver invita a quien recibe el secreto
 a crear el suyo. El logo y el favicon son el mismo monito con los ojos cerrados de la contraseña.
