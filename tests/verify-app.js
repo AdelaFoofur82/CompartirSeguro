@@ -43,11 +43,13 @@ async function makeLink(payloadText, password, metaExtra = {}) {
 const results = [];
 const check = (name, ok, info = '') => { results.push({ name, ok }); console.log((ok ? 'OK  ' : 'FAIL') + ' ' + name + (info ? ' :: ' + info : '')); };
 
-function makePage(url, seedShares) {
+function makePage(url, seedShares, ua) {
   const vc = new VirtualConsole();
   vc.on('jsdomError', e => console.log('JSDOM ERROR:', e.message));
-  const dom = new JSDOM(html, { url, runScripts: 'dangerously', virtualConsole: vc, pretendToBeVisual: true });
+  const opts = { url, runScripts: 'dangerously', virtualConsole: vc, pretendToBeVisual: true };
+  const dom = new JSDOM(html, opts);
   const w = dom.window;
+  if (ua) Object.defineProperty(w.navigator, 'userAgent', { value: ua, configurable: true });
   Object.defineProperty(w, 'crypto', { value: webcrypto, configurable: true });
   w.Blob = Blob;
   w.Response = globalThis.Response;
@@ -370,9 +372,53 @@ async function generar(w, { texto, expValue, nombre }) {
   await sleep(150);
   const fileInput = P.document.querySelector('input[type="file"]');
   check('selector de archivo presente', !!fileInput);
-  check('sin atributo accept (ningun filtro de tipo)', !!fileInput && !fileInput.hasAttribute('accept'),
+  check('sin atributo accept (ningun filtro de tipo)', !!fileInput &&
+    (!fileInput.hasAttribute('accept') || fileInput.getAttribute('accept') === 'null'),
     fileInput && fileInput.getAttribute('accept'));
-  check('explica que el limite es el tamano', P.document.body.textContent.includes('Cualquier tipo de archivo, sin filtro'));
+  check('explica que el limite es el tamano', P.document.body.textContent.includes('Cualquier tipo de archivo, sin filtro de extensión'));
+
+  // ---------- Q. Android: dos entradas, una con accept */* para abrir Archivos ----------
+  const UA_ANDROID = 'Mozilla/5.0 (Linux; Android 14; Pixel 7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0 Mobile Safari/537.36';
+  const { w: Q } = makePage('https://adelafoofur82.github.io/CompartirSeguro/', [], UA_ANDROID);
+  await sleep(500);
+  const selQ = [...Q.document.querySelectorAll('select')].find(x => [...x.options].some(o => o.value === 'file'));
+  selQ.value = 'file';
+  selQ.dispatchEvent(new Q.Event('change', { bubbles: true }));
+  await sleep(150);
+  const btnArchivos = [...Q.document.querySelectorAll('button')].find(b => b.textContent.includes('Elegir desde Archivos'));
+  check('Android: boton "Elegir desde Archivos"', !!btnArchivos,
+    'ua=' + Q.navigator.userAgent.slice(0, 40) + ' | isAndroid=' + /android/i.test(Q.navigator.userAgent) +
+    ' | botones=' + [...Q.document.querySelectorAll('button')].map(b => b.textContent.trim().slice(0, 18)).join(' / '));
+  check('Android: opcion de galeria como alternativa',
+    [...Q.document.querySelectorAll('button')].some(b => b.textContent.includes('galería')));
+  let clicked = 0;
+  Q.HTMLInputElement.prototype.click = function () { clicked++; };
+  btnArchivos.click();
+  await sleep(120);
+  const inputQ = Q.document.querySelector('input[type="file"]');
+  check('Android: el input pide accept */*', inputQ && inputQ.getAttribute('accept') === '*/*',
+    inputQ && inputQ.getAttribute('accept'));
+  check('Android: el input nativo no se ve ni se pulsa a mano',
+    inputQ && inputQ.classList.contains('d-none') && inputQ.disabled === true);
+  check('Android: el input nativo se dispara', clicked === 1, 'clicks=' + clicked);
+  const btnGaleria = [...Q.document.querySelectorAll('button')].find(b => b.textContent.includes('galería'));
+  btnGaleria.click();
+  await sleep(120);
+  const inputQ2 = Q.document.querySelector('input[type="file"]');
+  check('Android: la galeria deja el input sin accept', inputQ2 && !inputQ2.hasAttribute('accept'),
+    inputQ2 && inputQ2.getAttribute('accept'));
+
+  // En escritorio no aparecen los botones extra ni se oculta el input
+  const { w: R } = makePage('https://adelafoofur82.github.io/CompartirSeguro/', []);
+  await sleep(400);
+  const selR = [...R.document.querySelectorAll('select')].find(x => [...x.options].some(o => o.value === 'file'));
+  selR.value = 'file';
+  selR.dispatchEvent(new R.Event('change', { bubbles: true }));
+  await sleep(150);
+  check('escritorio: sin botones de Android',
+    ![...R.document.querySelectorAll('button')].some(b => b.textContent.includes('Elegir desde Archivos')));
+  const inputR = R.document.querySelector('input[type="file"]');
+  check('escritorio: input visible y sin accept', inputR && !inputR.classList.contains('d-none') && !inputR.hasAttribute('accept'));
 
   const failed = results.filter(r => !r.ok);
   console.log('\n' + (results.length - failed.length) + '/' + results.length + ' comprobaciones OK');

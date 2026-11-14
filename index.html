@@ -99,11 +99,32 @@
                                       placeholder="Escribe el secreto..."></textarea>
                         </div>
                         <div v-if="contentType === 'file'" class="mb-3">
-                            <input type="file" @change="onFileChange" class="form-control">
+                            <!-- Dos entradas distintas: con accept se abre el selector de archivos del
+                                 sistema en Android/iPhone; sin accept, algunos navegadores solo ofrecen
+                                 la galería. El mismo archivo entra por cualquiera de las dos. -->
+                            <label class="form-label">Archivo</label>
+                            <div v-if="isAndroid" class="d-grid gap-2 mb-2">
+                                <button class="btn btn-primary" type="button" @click="pickFile('explorer')"
+                                        :disabled="loading">
+                                    📁 Elegir desde Archivos
+                                </button>
+                                <button class="btn btn-outline-secondary btn-sm" type="button" @click="pickFile('any')">
+                                    O desde la galería / cualquier app
+                                </button>
+                            </div>
+                            <input :key="fileInputKey" type="file" :accept="fileAccept || null" :disabled="isAndroid"
+                                   @change="onFileChange" class="form-control" :class="isAndroid ? 'd-none' : ''">
+                            <small v-if="isAndroid" class="text-muted d-block mt-1">
+                                En Android usa los botones de arriba: el selector del sistema te deja entrar
+                                en Archivos, Descargas, Drive o cualquier app.
+                            </small>
+                            <div v-if="selectedFile" class="small text-muted mt-1">
+                                {{ selectedFile.name }} · {{ formatBytes(selectedFile.size) }}
+                            </div>
                             <small class="text-muted d-block mt-1">
-                                Cualquier tipo de archivo, sin filtro: el límite lo pone el tamaño del enlace,
-                                no la extensión. Los archivos grandes no caben (y las fotos y vídeos son justo
-                                los que más pesan); un PDF, un CSV o un .txt corto sí.
+                                Cualquier tipo de archivo, sin filtro de extensión. El límite lo pone el tamaño
+                                del enlace: un PDF, un CSV, un .txt o un JSON corto caben; fotos y vídeos casi
+                                nunca, porque pesan demasiado.
                             </small>
                         </div>
 
@@ -612,6 +633,23 @@
                     }
                 });
 
+                // En Android, un <input type="file"> sin accept abre directamente la galería
+                // (fotos y vídeos). Con accept se abre el explorador de archivos del sistema, que sí
+                // deja elegir cualquier fichero y cualquier app (Drive, Descargas, WhatsApp…).
+                const isAndroid = ref(/android/i.test(navigator.userAgent || ''));
+                const fileAccept = ref('');
+                const fileInputKey = ref(0);
+                const MIME_ANY_FILE = '*/*';
+
+                const pickFile = (modo) => {
+                    fileAccept.value = modo === 'explorer' ? MIME_ANY_FILE : '';
+                    fileInputKey.value += 1; // fuerza que el navegador recree el input con el nuevo accept
+                    setTimeout(() => {
+                        const el = document.querySelector('input[type="file"]');
+                        if (el) el.click();
+                    }, 0);
+                };
+
                 const onFileChange = (e) => { selectedFile.value = e.target.files[0]; };
 
                 const generateLink = async () => {
@@ -802,6 +840,7 @@
                     canInstall, installApp, homeUrl, MAX_FIELDS, addField, removeField, detectUrl, isLinkField,
                     copiedField, revealedFields, copyField, copyAllFields, copyState,
                     estimatedBytes, estimatedPayload, rawBytes, MAX_BYTES, MAX_CHARS,
+                    isAndroid, fileAccept, fileInputKey, pickFile,
                     formatBytes, onFileChange, generateLink, decryptContent,
                     copyUrl, copyText, loadShares, startRename, saveRename, deleteShare,
                     openedLabel
