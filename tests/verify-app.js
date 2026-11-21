@@ -539,6 +539,9 @@ async function generar(w, { texto, expValue, nombre }) {
     !/<h[4-6][\s>]/.test(htmlFuente), (htmlFuente.match(/<h[4-6][^>]*>/g) || []).join(' '));
   check('todos los titulos son h1-h3', (htmlFuente.match(/<h[1-3][\s>]/g) || []).length >= 3);
 
+  check('la base usa Cuprum como fuente general (--font-sans)', /--font-sans:"Cuprum"/.test(cssCompilado));
+  check('html hereda --default-font-family de --font-sans', /--default-font-family:var\(--font-sans\)/.test(cssCompilado));
+
   const failed = results.filter(r => !r.ok);
   console.log('\n' + (results.length - failed.length) + '/' + results.length + ' comprobaciones OK');
   process.exit(failed.length ? 1 : 0);

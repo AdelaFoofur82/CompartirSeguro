@@ -15,6 +15,7 @@
   --color-peligro: var(--tono-peligro);
   --color-exito: var(--tono-exito);
 
+  --font-sans: "Cuprum", ui-sans-serif, system-ui, sans-serif;
   --font-titulo: "Cuprum", ui-sans-serif, system-ui, sans-serif;
   --font-mono: "Rajdhani", ui-monospace, SFMono-Regular, Menlo, monospace;
 
