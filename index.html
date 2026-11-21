@@ -44,8 +44,8 @@
 
                 <!-- Modo Crear - Nuevo -->
                 <div v-if="mode === 'create' && tab === 'new'" class="overflow-hidden rounded-2xl border border-borde bg-superficie shadow-sm shadow-sm">
-                    <div class="border-b border-borde bg-superficie-2 px-5 py-3 font-semibold bg-acento text-white">
-                        <h4 class="mb-0">Crear enlace seguro</h4>
+                    <div class="border-b border-borde bg-acento px-5 py-3 text-white">
+                        <h4 class="mb-0 font-semibold">Crear enlace seguro</h4>
                     </div>
                     <div class="p-5">
                         <div class="mb-3">
@@ -168,7 +168,7 @@
                             <small class="text-tenue block">Guardado en tus compartidos.</small>
                         </div>
                     </div>
-                    <div class="border-t border-borde bg-superficie-2 px-5 py-3 text-center text-sm bg-superficie">
+                    <div class="border-t border-borde bg-superficie-2 px-5 py-3 text-center text-sm">
                         <a :href="REPO_URL" target="_blank" rel="noopener" class="text-tenue hover:underline no-underline">
                             Ver código en GitHub ↗
                         </a>
@@ -177,7 +177,7 @@
 
                 <!-- Modo Crear - Lista -->
                 <div v-if="mode === 'create' && tab === 'list'" class="overflow-hidden rounded-2xl border border-borde bg-superficie shadow-sm shadow-sm">
-                    <div class="border-b border-borde bg-superficie-2 px-5 py-3 font-semibold bg-superficie-2 text-white flex justify-between items-center">
+                    <div class="border-b border-borde bg-superficie-2 px-5 py-3 font-semibold flex justify-between items-center">
                         <h4 class="mb-0">Mis compartidos</h4>
                         <button class="boton-suave px-3 py-1 text-xs" @click="loadShares">Refrescar</button>
                     </div>
@@ -228,7 +228,7 @@
                             </div>
                         </div>
                     </div>
-                    <div class="border-t border-borde bg-superficie-2 px-5 py-3 text-center text-sm bg-superficie">
+                    <div class="border-t border-borde bg-superficie-2 px-5 py-3 text-center text-sm">
                         <a :href="REPO_URL" target="_blank" rel="noopener" class="text-tenue hover:underline no-underline">
                             Ver código en GitHub ↗
                         </a>
@@ -237,8 +237,8 @@
 
                 <!-- Modo Ver -->
                 <div v-if="mode === 'view'" class="overflow-hidden rounded-2xl border border-borde bg-superficie shadow-sm shadow-sm">
-                    <div class="border-b border-borde bg-superficie-2 px-5 py-3 font-semibold bg-exito text-white">
-                        <h4 class="mb-0">Contenido Protegido</h4>
+                    <div class="border-b border-borde bg-exito px-5 py-3 text-white">
+                        <h4 class="mb-0 font-semibold">Contenido Protegido</h4>
                     </div>
                     <div class="p-5">
                         <div class="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-acento/40 bg-acento/10 px-4 py-3">
@@ -307,7 +307,7 @@
                             </p>
                         </div>
                     </div>
-                    <div class="border-t border-borde bg-superficie-2 px-5 py-3 text-center text-sm bg-superficie">
+                    <div class="border-t border-borde bg-superficie-2 px-5 py-3 text-center text-sm">
                         <a :href="REPO_URL" target="_blank" rel="noopener" class="text-tenue hover:underline no-underline">
                             Ver código en GitHub ↗
                         </a>

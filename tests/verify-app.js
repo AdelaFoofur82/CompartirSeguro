@@ -476,6 +476,27 @@ async function generar(w, { texto, expValue, nombre }) {
   await sleep(400);
   check('?s= manda sobre share target', W.document.body.textContent.includes('Introduce la contraseña'));
 
+  // ---------- U. Cabeceras legibles: una sola clase de fondo por elemento ----------
+  const clasesFondo = (html) => {
+    const malas = [];
+    for (const m of html.matchAll(/class="([^"]*)"/g)) {
+      const bg = (m[1] || "").split(/\s+/).filter(c => c.startsWith("bg-"));
+      if (bg.length > 1) malas.push(bg.join(" + "));
+    }
+    return malas;
+  };
+  const duplicadas = clasesFondo(fs.readFileSync(path.join(ROOT, 'index.html'), 'utf8'));
+  check('sin clases de fondo duplicadas (la ultima gana y rompe el contraste)',
+    duplicadas.length === 0, JSON.stringify(duplicadas.slice(0, 4)));
+
+  const { w: X } = makePage('https://adelafoofur82.github.io/CompartirSeguro/');
+  await sleep(400);
+  const cabecera = X.document.querySelector('h4');
+  check('el titulo de la tarjeta es visible sobre su fondo',
+    cabecera && cabecera.closest('div').className.includes('bg-acento') &&
+    cabecera.closest('div').className.includes('text-white'),
+    cabecera && cabecera.closest('div').className);
+
   const failed = results.filter(r => !r.ok);
   console.log('\n' + (results.length - failed.length) + '/' + results.length + ' comprobaciones OK');
   process.exit(failed.length ? 1 : 0);

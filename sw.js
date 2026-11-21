@@ -1,4 +1,4 @@
-const CACHE_NAME = 'share-secure-v16';
+const CACHE_NAME = 'share-secure-v17';
 const ASSETS = [
     './',
     './index.html',
