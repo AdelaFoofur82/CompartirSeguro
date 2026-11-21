@@ -1,0 +1,149 @@
+@import "tailwindcss";
+
+/* de dónde salen las clases: las plantillas del servidor */
+@source "./index.html";
+
+/* Paleta de MongoKu (estilo Apple): variables que cambian con el tema. */
+@theme {
+  --color-fondo: var(--tono-fondo);
+  --color-superficie: var(--tono-superficie);
+  --color-superficie-2: var(--tono-superficie-2);
+  --color-borde: var(--tono-borde);
+  --color-texto: var(--tono-texto);
+  --color-tenue: var(--tono-tenue);
+  --color-acento: var(--tono-acento);
+  --color-peligro: var(--tono-peligro);
+  --color-exito: var(--tono-exito);
+
+  --font-titulo: "Cuprum", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "Rajdhani", ui-monospace, SFMono-Regular, Menlo, monospace;
+
+  --radius-caja: 1rem;
+}
+
+:root,
+:root[data-theme="light"] {
+  color-scheme: light;
+  --tono-fondo: #f5f5f7;
+  --tono-superficie: #ffffff;
+  --tono-superficie-2: #f0f0f2;
+  --tono-borde: #dcdce0;
+  --tono-texto: #1d1d1f;
+  --tono-tenue: #6e6e73;
+  --tono-acento: #007aff;
+  --tono-peligro: #ff3b30;
+  --tono-exito: #059669;
+}
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --tono-fondo: #1c1c1e;
+  --tono-superficie: #2c2c2e;
+  --tono-superficie-2: #3a3a3c;
+  --tono-borde: #48484a;
+  --tono-texto: #f5f5f7;
+  --tono-tenue: #98989d;
+  --tono-acento: #0a84ff;
+  --tono-peligro: #ff453a;
+  --tono-exito: #30d158;
+}
+
+/* Tipografías, servidas desde el propio servidor (nada de CDN). */
+@font-face {
+  font-family: "Cuprum";
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url("fuentes/cuprum-latin-400-normal.woff2") format("woff2");
+}
+@font-face {
+  font-family: "Cuprum";
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url("fuentes/cuprum-latin-600-normal.woff2") format("woff2");
+}
+@font-face {
+  font-family: "Cuprum";
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url("fuentes/cuprum-latin-700-normal.woff2") format("woff2");
+}
+@font-face {
+  font-family: "Rajdhani";
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url("fuentes/rajdhani-latin-400-normal.woff2") format("woff2");
+}
+@font-face {
+  font-family: "Rajdhani";
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url("fuentes/rajdhani-latin-500-normal.woff2") format("woff2");
+}
+@font-face {
+  font-family: "Rajdhani";
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url("fuentes/rajdhani-latin-600-normal.woff2") format("woff2");
+}
+@font-face {
+  font-family: "Rajdhani";
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url("fuentes/rajdhani-latin-700-normal.woff2") format("woff2");
+}
+
+@layer base {
+  html { @apply antialiased; }
+  body { @apply bg-fondo text-texto; }
+  h1, h2, h3 { @apply font-titulo; }
+  code, .mono, kbd { @apply font-mono; }
+  ::selection { background: color-mix(in srgb, var(--tono-acento) 25%, transparent); }
+}
+
+@layer components {
+  .caja { @apply rounded-caja border border-borde bg-superficie p-5 shadow-sm sm:p-6; }
+  .caja + .caja { @apply mt-4; }
+  .etiqueta { @apply mb-1 block text-sm font-medium text-texto; }
+  .campo {
+    @apply w-full rounded-lg border border-borde bg-fondo px-3 py-2 text-sm text-texto
+           outline-none transition focus:border-acento focus:ring-2 focus:ring-acento/30;
+  }
+  .campo::placeholder { @apply text-tenue; }
+  .ayuda { @apply mt-1 text-xs text-tenue; }
+  .boton {
+    @apply inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm font-medium
+           transition disabled:opacity-50;
+  }
+  .boton-principal { @apply inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm font-medium transition disabled:opacity-50 bg-acento text-white hover:brightness-110; }
+  .boton-suave { @apply inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm font-medium transition disabled:opacity-50 border border-borde bg-superficie-2 text-texto hover:border-acento; }
+  .boton-peligro { @apply inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm font-medium transition disabled:opacity-50 border border-peligro/40 text-peligro hover:bg-peligro/10; }
+  .boton-enlace { @apply inline underline-offset-2 hover:underline; }
+  .pastilla {
+    @apply inline-flex items-center gap-1 rounded-full border border-borde bg-superficie-2
+           px-2.5 py-0.5 text-xs text-tenue;
+  }
+  .pastilla-bien { @apply border-exito/40 bg-exito/10 text-exito; }
+  .pastilla-mal { @apply border-peligro/40 bg-peligro/10 text-peligro; }
+  .dato {
+    @apply overflow-x-auto rounded-lg border border-borde bg-superficie-2 px-3 py-2
+           font-mono text-sm break-all;
+  }
+  .barra { @apply h-2 w-full overflow-hidden rounded-full border border-borde bg-superficie-2; }
+  .barra-llena { @apply h-full rounded-full bg-acento transition-[width]; }
+  .barra-llena.apurado { @apply bg-amber-500; }
+  .barra-llena.llena { @apply bg-peligro; }
+  .paso {
+    @apply inline-flex size-7 shrink-0 items-center justify-center rounded-full bg-acento
+           text-sm font-semibold text-white;
+  }
+  .tabla { @apply w-full text-sm; }
+  .tabla th { @apply border-b border-borde px-2 py-2 text-left text-xs font-semibold uppercase tracking-wide text-tenue; }
+  .tabla td { @apply border-b border-borde/60 px-2 py-2 align-top; }
+}

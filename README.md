@@ -118,9 +118,12 @@ solo la primera carga necesita red).
 Sin build, sin dependencias instaladas: tres archivos y ya.
 
 ```
-index.html      toda la app (Vue 3 + Bootstrap desde CDN)
+index.html      toda la app (Vue 3 desde CDN)
 manifest.json   metadatos de la PWA
 sw.js           service worker (caché de los archivos)
+tailwind.css    CSS compilado que sirve la página (tema claro/oscuro)
+estilos.css     fuente del CSS (Tailwind + paleta); se compila a tailwind.css
+fuentes/        Cuprum y Rajdhani en woff2, servidas en local
 icon.svg        logo/favicon: el monito con los ojos cerrados
 icons/          PNG 192/512/maskable + apple-touch, mismo dibujo
 tools/          make-icons.py, el generador de iconos (sin dependencias)
@@ -153,6 +156,19 @@ python3 tools/make-icons.py
 
 Si cambias el monito, cambia el SVG y el generador a la vez, o el icono instalado y el favicon no
 coincidirán.
+
+### Estilos
+
+La interfaz usa Tailwind con una paleta propia (claro y oscuro según el sistema). `estilos.css` es la
+fuente — define las variables de color y las clases de componente (`.caja`, `.campo`, `.boton`) — y
+`tailwind.css` es el resultado compilado, que es lo único que enlaza el HTML. Si cambias estilos, edita
+`estilos.css` y vuelve a compilar:
+
+```bash
+npx @tailwindcss/cli -i estilos.css -o tailwind.css --minify
+```
+
+Las tipografías van en `fuentes/` y se cargan desde ahí, sin depender de ningún CDN.
 
 ### Pruebas
 

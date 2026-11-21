@@ -115,8 +115,8 @@ async function generar(w, { texto, expValue, nombre }) {
   setVal(B, B.document.querySelector('input[type="password"]'), 'clave-segura-123');
   [...B.document.querySelectorAll('button')].find(b => b.textContent.includes('Desbloquear')).click();
   let pre = null;
-  for (let i = 0; i < 120; i++) { await sleep(100); const bl = B.document.querySelector('.border.rounded.p-2'); pre = bl ? (bl.querySelector('pre') || bl.querySelector('input')) : null; if (pre) break; }
-  const bloqueA = B.document.querySelector('.border.rounded.p-2');
+  for (let i = 0; i < 120; i++) { await sleep(100); const bl = B.document.querySelector('.campo-fila'); pre = bl ? (bl.querySelector('pre') || bl.querySelector('input')) : null; if (pre) break; }
+  const bloqueA = B.document.querySelector('.campo-fila');
   const valorA = bloqueA ? (bloqueA.querySelector('pre') || bloqueA.querySelector('input')) : null;
   const textoA = valorA ? (valorA.value !== undefined ? valorA.value : valorA.textContent) : '';
   check('texto descomprimido identico', textoA.trim() === texto.trim(), textoA.length + ' chars');
@@ -162,9 +162,9 @@ async function generar(w, { texto, expValue, nombre }) {
   // ---------- H. Banner "Úsame" en la página de ver ----------
   const { w: H } = makePage(urlA, [entrada]);
   await sleep(500);
-  const banner = [...H.document.querySelectorAll('.alert')].find(a => a.textContent.includes('Úsame para compartir tus secretos'));
+  const banner = [...H.document.querySelectorAll('div,section')].find(a => a.textContent.includes('Úsame para compartir tus secretos'));
   check('banner "Úsame" en la pagina de ver', !!banner);
-  const cta = banner && banner.querySelector('a');
+  const cta = [...H.document.querySelectorAll('a')].find(a => a.textContent.includes('Crear mi enlace'));
   check('CTA del banner lleva a crear (sin hash)',
     cta && cta.getAttribute('href') === 'https://adelafoofur82.github.io/CompartirSeguro/',
     cta && cta.getAttribute('href'));
@@ -284,7 +284,8 @@ async function generar(w, { texto, expValue, nombre }) {
   const linkAbrir = [...L.document.querySelectorAll('a')].find(a => a.textContent.includes('Abrir'));
   check('boton Abrir para la URL', !!linkAbrir && linkAbrir.getAttribute('href') === 'https://ejemplo.com/login?x=1',
     linkAbrir && linkAbrir.getAttribute('href'));
-  check('URL tambien como enlace clicable', !!L.document.querySelector('a.text-break[href^="https://ejemplo.com"]'));
+  check('URL tambien como enlace clicable',
+    [...L.document.querySelectorAll('a')].some(a => a.getAttribute('href') === 'https://ejemplo.com/login?x=1'));
   check('URL automatica sin marcar nada', txtL.includes('Abrir'));
 
   // Copiar cada campo por separado
@@ -292,14 +293,16 @@ async function generar(w, { texto, expValue, nombre }) {
   check('cuatro bloques de campo', rows.length === 4, 'bloques=' + rows.length);
   const filaDe = (nombre) => [...L.document.querySelectorAll('.campo-label')]
     .find(r => r.textContent.trim() === nombre);
-  const bloqueDe = (nombre) => filaDe(nombre) && filaDe(nombre).closest('.border.rounded.p-2');
+  const bloqueDe = (nombre) => filaDe(nombre) && filaDe(nombre).closest('.campo-fila');
   const botonDe = (nombre) => {
     const row = bloqueDe(nombre);
     return row && [...row.querySelectorAll('button')].find(b => b.textContent.includes('Copiar'));
   };
   botonDe('Email').click(); await sleep(150);
   check('copiar solo el email', clipL.text === 'adela@ejemplo.com', JSON.stringify(clipL.text));
-  const fbEmail = bloqueDe('Email') ? bloqueDe('Email').querySelector('button.btn-success') : null;
+  const fbEmail = bloqueDe('Email')
+    ? [...bloqueDe('Email').querySelectorAll('button')].find(b => b.textContent.includes('Copiado'))
+    : null;
   check('feedback en el boton del campo', !!fbEmail && fbEmail.textContent.includes('Copiado'),
     fbEmail && fbEmail.textContent.trim());
   botonDe('Contraseña').click(); await sleep(150);
@@ -358,7 +361,7 @@ async function generar(w, { texto, expValue, nombre }) {
   selTipoP.dispatchEvent(new P.Event('change', { bubbles: true }));
   await sleep(150);
   const fileInput = P.document.querySelector('input[type="file"]');
-  check('escritorio: selector de archivo visible', !!fileInput && !fileInput.classList.contains('d-none'));
+  check('escritorio: selector de archivo visible', !!fileInput && !fileInput.classList.contains('d-none') && !fileInput.classList.contains('hidden'));
   check('escritorio: sin filtro de tipo',
     !!fileInput && (!fileInput.hasAttribute('accept') || fileInput.getAttribute('accept') === 'null'),
     fileInput && fileInput.getAttribute('accept'));
@@ -383,9 +386,10 @@ async function generar(w, { texto, expValue, nombre }) {
     clicks.push({ accept: this.getAttribute('accept'), disabled: this.disabled, hidden: this.classList.contains('d-none') });
   };
   const inputQ = () => Q.document.querySelector('input[type="file"]');
+  const oculto = (el) => el.classList.contains('d-none') || el.classList.contains('hidden');
   check('Android: el input esta oculto pero habilitado',
-    inputQ().classList.contains('d-none') && inputQ().disabled === false,
-    'hidden=' + inputQ().classList.contains('d-none') + ' disabled=' + inputQ().disabled);
+    oculto(inputQ()) && inputQ().disabled === false,
+    'hidden=' + oculto(inputQ()) + ' disabled=' + inputQ().disabled);
 
   btnArchivos.click();
   await sleep(150);

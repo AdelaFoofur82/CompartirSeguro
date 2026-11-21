@@ -4,125 +4,125 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Compartir Seguro</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="tailwind.css">
     <script src="https://cdn.jsdelivr.net/npm/vue@3/dist/vue.global.js"></script>
     <link rel="manifest" href="manifest.json">
     <link rel="icon" type="image/svg+xml" href="icon.svg">
     <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
     <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
     <meta name="referrer" content="no-referrer">
-    <meta name="theme-color" content="#0d6efd">
+    <meta name="theme-color" content="#007aff">
 </head>
-<body class="bg-light">
-    <div id="app" class="container py-4">
-        <div class="row justify-content-center">
-            <div class="col-12 col-lg-8">
+<body class="bg-fondo">
+    <div id="app" class="mx-auto w-full max-w-2xl px-4 py-4">
+        <div class="flex w-full justify-center">
+            <div class="w-full mx-auto w-full max-w-2xl">
 
                 <!-- Cabecera con logo -->
-                <div class="d-flex align-items-center justify-content-between mb-3">
-                    <div class="d-flex align-items-center gap-2">
+                <div class="flex items-center justify-between mb-3">
+                    <div class="flex items-center gap-2">
                         <img src="icon.svg" alt="Mono con los ojos cerrados, logo de Compartir Seguro" width="40" height="40">
-                        <span class="fw-bold fs-5">Compartir Seguro</span>
+                        <span class="font-semibold text-lg">Compartir Seguro</span>
                     </div>
-                    <button v-if="canInstall" class="btn btn-sm btn-outline-primary" @click="installApp"
+                    <button v-if="canInstall" class="inline-flex items-center justify-center gap-2 font-medium boton-suave px-3 py-1 text-xs" @click="installApp"
                             title="Instalar la app en este dispositivo">
                         📲 Instálame
                     </button>
                 </div>
 
                 <!-- Tabs -->
-                <ul class="nav nav-tabs mb-3" v-if="mode === 'create'">
-                    <li class="nav-item">
-                        <button class="nav-link" :class="{active: tab==='new'}" @click="tab='new'">Nuevo enlace</button>
+                <ul class="flex flex gap-1 rounded-xl border border-borde bg-superficie p-1 mb-3" v-if="mode === 'create'">
+                    <li class="">
+                        <button class="rounded-lg px-3 py-1.5 text-sm text-tenue" :class="tab==='new' ? 'bg-superficie-2 font-medium text-texto' : 'text-tenue hover:text-texto'" @click="tab='new'">Nuevo enlace</button>
                     </li>
-                    <li class="nav-item">
-                        <button class="nav-link" :class="{active: tab==='list'}" @click="tab='list'">
-                            Mis compartidos <span class="badge bg-secondary">{{ shares.length }}</span>
+                    <li class="">
+                        <button class="rounded-lg px-3 py-1.5 text-sm text-tenue" :class="tab==='list' ? 'bg-superficie-2 font-medium text-texto' : 'text-tenue hover:text-texto'" @click="tab='list'">
+                            Mis compartidos <span class="pastilla bg-superficie-2">{{ shares.length }}</span>
                         </button>
                     </li>
                 </ul>
 
                 <!-- Modo Crear - Nuevo -->
-                <div v-if="mode === 'create' && tab === 'new'" class="card shadow">
-                    <div class="card-header bg-primary text-white">
+                <div v-if="mode === 'create' && tab === 'new'" class="overflow-hidden rounded-2xl border border-borde bg-superficie shadow-sm shadow-sm">
+                    <div class="border-b border-borde bg-superficie-2 px-5 py-3 font-semibold bg-acento text-white">
                         <h4 class="mb-0">Crear enlace seguro</h4>
                     </div>
-                    <div class="card-body">
+                    <div class="p-5">
                         <div class="mb-3">
-                            <label class="form-label">Nombre para identificarlo (opcional)</label>
-                            <input type="text" v-model="shareName" class="form-control" placeholder="Ej: Clave WiFi casa">
+                            <label class="etiqueta">Nombre para identificarlo (opcional)</label>
+                            <input type="text" v-model="shareName" class="campo" placeholder="Ej: Clave WiFi casa">
                         </div>
                         <div class="mb-3">
-                            <label class="form-label">Contraseña para desbloquear</label>
-                            <div class="input-group">
-                                <input :type="showCreatePwd ? 'text' : 'password'" v-model="password" class="form-control" placeholder="Mínimo 4 caracteres">
-                                <button class="btn btn-outline-secondary" type="button" @click="showCreatePwd = !showCreatePwd"
+                            <label class="etiqueta">Contraseña para desbloquear</label>
+                            <div class="flex">
+                                <input :type="showCreatePwd ? 'text' : 'password'" v-model="password" class="campo" placeholder="Mínimo 4 caracteres">
+                                <button class="inline-flex items-center justify-center gap-2 font-medium boton-suave" type="button" @click="showCreatePwd = !showCreatePwd"
                                         :title="showCreatePwd ? 'Ocultar contraseña' : 'Mostrar contraseña'">
                                     {{ showCreatePwd ? '🙈' : '👁️' }}
                                 </button>
                             </div>
                         </div>
                         <div class="mb-3">
-                            <label class="form-label">Tipo de contenido</label>
-                            <select v-model="contentType" class="form-select">
+                            <label class="etiqueta">Tipo de contenido</label>
+                            <select v-model="contentType" class="campo">
                                 <option value="fields">Campos con nombre (email, contraseña, URL…)</option>
                                 <option value="text">Texto libre</option>
                                 <option value="file">Archivo</option>
                             </select>
                         </div>
                         <div v-if="contentType === 'fields'" class="mb-3">
-                            <label class="form-label">Campos del secreto</label>
-                            <div v-for="(f, i) in fields" :key="f.id" class="border rounded p-2 mb-2 bg-white">
-                                <div class="d-flex gap-2 align-items-center mb-1">
-                                    <input type="text" v-model="f.label" class="form-control form-control-sm"
+                            <label class="etiqueta">Campos del secreto</label>
+                            <div v-for="(f, i) in fields" :key="f.id" class="border border-borde rounded-lg p-2 mb-2 bg-superficie">
+                                <div class="flex gap-2 items-center mb-1">
+                                    <input type="text" v-model="f.label" class="campo campo px-2 py-1 text-xs"
                                            :placeholder="i === 0 ? 'Nombre (ej: Email)' : 'Nombre (ej: Contraseña)'">
-                                    <span v-if="detectUrl(f.value)" class="badge bg-success">🔗 enlace</span>
-                                    <button class="btn btn-sm btn-outline-danger ms-auto" @click="removeField(i)"
+                                    <span v-if="detectUrl(f.value)" class="pastilla bg-exito">🔗 enlace</span>
+                                    <button class="inline-flex items-center justify-center gap-2 font-medium boton-peligro ml-auto px-3 py-1 text-xs" @click="removeField(i)"
                                             :disabled="fields.length <= 1" title="Quitar este campo">🗑️</button>
                                 </div>
-                                <textarea v-model="f.value" class="form-control" rows="2"
+                                <textarea v-model="f.value" class="campo" rows="2"
                                           placeholder="Valor"></textarea>
                             </div>
-                            <button class="btn btn-sm btn-outline-primary" @click="addField"
+                            <button class="inline-flex items-center justify-center gap-2 font-medium boton-suave px-3 py-1 text-xs" @click="addField"
                                     :disabled="fields.length >= MAX_FIELDS">
                                 ➕ Añadir campo
                             </button>
-                            <small class="text-muted d-block mt-1">
+                            <small class="text-tenue block mt-1">
                                 {{ fields.length }}/{{ MAX_FIELDS }} campos. Todo (nombres incluidos) viaja cifrado
                                 y ocupa espacio en el enlace: la barra de abajo lo cuenta. Si un valor es una URL,
                                 al abrirlo se convierte en enlace automáticamente.
-                                <span class="text-danger" v-if="fields.length >= MAX_FIELDS">Máximo alcanzado.</span>
+                                <span class="text-peligro" v-if="fields.length >= MAX_FIELDS">Máximo alcanzado.</span>
                             </small>
                         </div>
                         <div v-if="contentType === 'text'" class="mb-3">
-                            <label class="form-label">Texto</label>
-                            <textarea v-model="plainText" class="form-control" rows="4"
+                            <label class="etiqueta">Texto</label>
+                            <textarea v-model="plainText" class="campo" rows="4"
                                       placeholder="Escribe el secreto..."></textarea>
                         </div>
                         <div v-if="contentType === 'file'" class="mb-3">
                             <!-- Dos entradas distintas: con accept se abre el selector de archivos del
                                  sistema en Android/iPhone; sin accept, algunos navegadores solo ofrecen
                                  la galería. El mismo archivo entra por cualquiera de las dos. -->
-                            <label class="form-label">Archivo</label>
-                            <div v-if="isAndroid" class="d-grid gap-2 mb-2">
-                                <button class="btn btn-primary" type="button" @click="pickFile('explorer')"
+                            <label class="etiqueta">Archivo</label>
+                            <div v-if="isAndroid" class="grid gap-2 mb-2">
+                                <button class="inline-flex items-center justify-center gap-2 font-medium boton-principal" type="button" @click="pickFile('explorer')"
                                         :disabled="loading">
                                     📁 Elegir desde Archivos
                                 </button>
-                                <button class="btn btn-outline-secondary btn-sm" type="button" @click="pickFile('any')">
+                                <button class="inline-flex items-center justify-center gap-2 font-medium boton-suave px-3 py-1 text-xs" type="button" @click="pickFile('any')">
                                     O desde la galería / cualquier app
                                 </button>
                             </div>
                             <input :key="fileInputKey" type="file" :accept="fileAccept || null"
-                                   @change="onFileChange" class="form-control" :class="isAndroid ? 'd-none' : ''">
-                            <small v-if="isAndroid" class="text-muted d-block mt-1">
+                                   @change="onFileChange" class="campo" :class="isAndroid ? 'hidden' : ''">
+                            <small v-if="isAndroid" class="text-tenue block mt-1">
                                 En Android usa los botones de arriba: el selector del sistema te deja entrar
                                 en Archivos, Descargas, Drive o cualquier app.
                             </small>
-                            <div v-if="selectedFile" class="small text-muted mt-1">
+                            <div v-if="selectedFile" class="text-sm text-tenue mt-1">
                                 {{ selectedFile.name }} · {{ formatBytes(selectedFile.size) }}
                             </div>
-                            <small class="text-muted d-block mt-1">
+                            <small class="text-tenue block mt-1">
                                 Cualquier tipo de archivo, sin filtro de extensión. El límite lo pone el tamaño
                                 del enlace: un PDF, un CSV, un .txt o un JSON corto caben; fotos y vídeos casi
                                 nunca, porque pesan demasiado.
@@ -131,18 +131,18 @@
 
                         <!-- Barra de tamaño estimado -->
                         <div class="mb-3">
-                            <div class="d-flex justify-content-between small text-muted mb-1">
+                            <div class="flex justify-between text-sm text-tenue mb-1">
                                 <span>Espacio estimado del enlace</span>
-                                <span :class="estimatedBytes > MAX_BYTES ? 'text-danger fw-bold' : ''">
+                                <span :class="estimatedBytes > MAX_BYTES ? 'font-semibold text-peligro' : ''">
                                     {{ formatBytes(estimatedBytes) }} / {{ formatBytes(MAX_BYTES) }}
                                 </span>
                             </div>
-                            <div class="progress" style="height: 8px;">
-                                <div class="progress-bar"
-                                     :class="estimatedBytes > MAX_BYTES ? 'bg-danger' : (estimatedBytes > MAX_BYTES*0.8 ? 'bg-warning' : 'bg-success')"
+                            <div class="h-2 w-full overflow-hidden rounded-full border border-borde bg-superficie-2" style="height: 8px;">
+                                <div class="h-full rounded-full bg-acento transition-[width]"
+                                     :class="estimatedBytes > MAX_BYTES ? 'bg-peligro' : (estimatedBytes > MAX_BYTES*0.8 ? 'bg-amber-500' : 'bg-exito')"
                                      :style="{ width: Math.min(100, (estimatedBytes / MAX_BYTES) * 100) + '%' }"></div>
                             </div>
-                            <small class="text-muted d-block mt-1">
+                            <small class="text-tenue block mt-1">
                                 Límite del enlace: {{ MAX_CHARS.toLocaleString() }} caracteres de URL.
                                 El secreto viaja cifrado en la dirección (?s=…), así que puedes pasarla por un
                                 acortador para mandar un enlace corto.
@@ -151,164 +151,164 @@
                             </small>
                         </div>
 
-                        <button @click="generateLink" class="btn btn-primary w-100"
+                        <button @click="generateLink" class="inline-flex items-center justify-center gap-2 font-medium boton-principal w-full"
                                 :disabled="loading || estimatedBytes > MAX_BYTES || !password">
-                            <span v-if="loading" class="spinner-border spinner-border-sm"></span>
+                            <span v-if="loading" class="inline-block size-4 animate-spin rounded-full border-2 border-current border-t-transparent size-3"></span>
                             Generar Enlace
                         </button>
 
                         <div v-if="generatedUrl" class="mt-4">
-                            <label class="form-label fw-bold">Copia este enlace:</label>
-                            <div class="input-group">
-                                <input type="text" :value="generatedUrl" class="form-control" readonly>
-                                <button class="btn btn-outline-secondary" @click="copyUrl(generatedUrl)">Copiar</button>
-                                <button v-if="canShare" class="btn btn-primary" @click="shareUrl(generatedUrl, shareName)"
+                            <label class="etiqueta font-semibold">Copia este enlace:</label>
+                            <div class="flex">
+                                <input type="text" :value="generatedUrl" class="campo" readonly>
+                                <button class="inline-flex items-center justify-center gap-2 font-medium boton-suave" @click="copyUrl(generatedUrl)">Copiar</button>
+                                <button v-if="canShare" class="inline-flex items-center justify-center gap-2 font-medium boton-principal" @click="shareUrl(generatedUrl, shareName)"
                                         title="Compartir con otra app">📤 Compartir</button>
                             </div>
-                            <small class="text-muted d-block">Guardado en tus compartidos.</small>
+                            <small class="text-tenue block">Guardado en tus compartidos.</small>
                         </div>
                     </div>
-                    <div class="card-footer text-center small bg-white">
-                        <a :href="REPO_URL" target="_blank" rel="noopener" class="link-secondary text-decoration-none">
+                    <div class="border-t border-borde bg-superficie-2 px-5 py-3 text-center text-sm bg-superficie">
+                        <a :href="REPO_URL" target="_blank" rel="noopener" class="text-tenue hover:underline no-underline">
                             Ver código en GitHub ↗
                         </a>
                     </div>
                 </div>
 
                 <!-- Modo Crear - Lista -->
-                <div v-if="mode === 'create' && tab === 'list'" class="card shadow">
-                    <div class="card-header bg-secondary text-white d-flex justify-content-between align-items-center">
+                <div v-if="mode === 'create' && tab === 'list'" class="overflow-hidden rounded-2xl border border-borde bg-superficie shadow-sm shadow-sm">
+                    <div class="border-b border-borde bg-superficie-2 px-5 py-3 font-semibold bg-superficie-2 text-white flex justify-between items-center">
                         <h4 class="mb-0">Mis compartidos</h4>
-                        <button class="btn btn-sm btn-outline-light" @click="loadShares">Refrescar</button>
+                        <button class="boton-suave px-3 py-1 text-xs" @click="loadShares">Refrescar</button>
                     </div>
-                    <div class="card-body">
-                        <div v-if="shares.length === 0" class="text-center text-muted py-4">
+                    <div class="p-5">
+                        <div v-if="shares.length === 0" class="text-center text-tenue py-4">
                             Aún no has creado ningún enlace.
                         </div>
-                        <p v-else class="small text-muted">
+                        <p v-else class="text-sm text-tenue">
                             El registro de aperturas solo ve las que ocurren en este mismo navegador.
                             Para saber si otra persona lo abrió haría falta un servidor.
                         </p>
-                        <div v-for="s in shares" :key="s.id" class="border rounded p-3 mb-2">
-                            <div class="d-flex justify-content-between align-items-start">
+                        <div v-for="s in shares" :key="s.id" class="border border-borde rounded-lg p-3 mb-2">
+                            <div class="flex justify-between items-start">
                                 <div class="flex-grow-1 me-2">
                                     <div v-if="s.editing">
-                                        <input type="text" v-model="s.editName" class="form-control form-control-sm mb-1">
-                                        <button class="btn btn-sm btn-success" @click="saveRename(s)">Guardar</button>
-                                        <button class="btn btn-sm btn-secondary" @click="s.editing=false">Cancelar</button>
+                                        <input type="text" v-model="s.editName" class="campo campo px-2 py-1 text-xs mb-1">
+                                        <button class="inline-flex items-center justify-center gap-2 font-medium boton-principal px-3 py-1 text-xs" @click="saveRename(s)">Guardar</button>
+                                        <button class="inline-flex items-center justify-center gap-2 font-medium boton-suave px-3 py-1 text-xs" @click="s.editing=false">Cancelar</button>
                                     </div>
                                     <div v-else>
-                                        <div class="fw-bold">
+                                        <div class="font-semibold">
                                             {{ s.name || '(sin nombre)' }}
-                                            <span class="badge bg-info text-dark ms-1">{{ s.type }}</span>
-                                            <span v-if="s.fieldCount > 1" class="badge bg-light text-secondary border ms-1">
+                                            <span class="pastilla bg-acento text-texto ml-1">{{ s.type }}</span>
+                                            <span v-if="s.fieldCount > 1" class="pastilla bg-fondo text-tenue border border-borde ml-1">
                                                 {{ s.fieldCount }} campos
                                             </span>
                                         </div>
-                                        <small class="text-muted">
+                                        <small class="text-tenue">
                                             {{ new Date(s.date).toLocaleString() }} ·
                                             {{ formatBytes(s.size) }} ·
                                             {{ s.urlLength.toLocaleString() }} chars URL
                                         </small>
                                         <div class="mt-1">
-                                            <span class="badge" :class="s.openedAt ? 'bg-success' : 'bg-secondary'">{{ openedLabel(s) }}</span>
+                                            <span class="pastilla" :class="s.openedAt ? 'border-exito/40 bg-exito/10 text-exito' : 'text-tenue'">{{ openedLabel(s) }}</span>
                                         </div>
                                     </div>
                                 </div>
-                                <div class="btn-group btn-group-sm">
-                                    <button v-if="canShare" class="btn btn-outline-success" @click="shareUrl(s.url, s.name)"
+                                <div class="inline-flex gap-1">
+                                    <button v-if="canShare" class="inline-flex items-center justify-center gap-2 font-medium boton-suave" @click="shareUrl(s.url, s.name)"
                                             title="Compartir">📤</button>
-                                    <button class="btn btn-outline-primary" @click="copyUrl(s.url)" title="Copiar">📋</button>
-                                    <button class="btn btn-outline-secondary" @click="startRename(s)" title="Renombrar">✏️</button>
-                                    <button class="btn btn-outline-danger" @click="deleteShare(s.id)" title="Eliminar">🗑️</button>
+                                    <button class="inline-flex items-center justify-center gap-2 font-medium boton-suave" @click="copyUrl(s.url)" title="Copiar">📋</button>
+                                    <button class="inline-flex items-center justify-center gap-2 font-medium boton-suave" @click="startRename(s)" title="Renombrar">✏️</button>
+                                    <button class="inline-flex items-center justify-center gap-2 font-medium boton-peligro" @click="deleteShare(s.id)" title="Eliminar">🗑️</button>
                                 </div>
                             </div>
                             <div class="mt-2">
-                                <input type="text" :value="s.url" class="form-control form-control-sm" readonly>
+                                <input type="text" :value="s.url" class="campo campo px-2 py-1 text-xs" readonly>
                             </div>
                         </div>
                     </div>
-                    <div class="card-footer text-center small bg-white">
-                        <a :href="REPO_URL" target="_blank" rel="noopener" class="link-secondary text-decoration-none">
+                    <div class="border-t border-borde bg-superficie-2 px-5 py-3 text-center text-sm bg-superficie">
+                        <a :href="REPO_URL" target="_blank" rel="noopener" class="text-tenue hover:underline no-underline">
                             Ver código en GitHub ↗
                         </a>
                     </div>
                 </div>
 
                 <!-- Modo Ver -->
-                <div v-if="mode === 'view'" class="card shadow">
-                    <div class="card-header bg-success text-white">
+                <div v-if="mode === 'view'" class="overflow-hidden rounded-2xl border border-borde bg-superficie shadow-sm shadow-sm">
+                    <div class="border-b border-borde bg-superficie-2 px-5 py-3 font-semibold bg-exito text-white">
                         <h4 class="mb-0">Contenido Protegido</h4>
                     </div>
-                    <div class="card-body">
-                        <div class="alert alert-primary d-flex flex-wrap justify-content-between align-items-center gap-2">
+                    <div class="p-5">
+                        <div class="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-acento/40 bg-acento/10 px-4 py-3">
                             <div>
                                 <strong>🔒 Úsame para compartir tus secretos.</strong>
-                                <div class="small">Sin servidores: el secreto viaja cifrado dentro del enlace y nadie más lo ve.</div>
+                                <div class="text-sm">Sin servidores: el secreto viaja cifrado dentro del enlace y nadie más lo ve.</div>
                             </div>
-                            <a :href="homeUrl" class="btn btn-sm btn-primary">Crear mi enlace</a>
+                            <a :href="homeUrl" class="inline-flex items-center justify-center gap-2 font-medium boton-principal px-3 py-1 text-xs">Crear mi enlace</a>
                         </div>
                         <div v-if="!decrypted">
                             <div class="mb-3">
-                                <label class="form-label">Introduce la contraseña</label>
-                                <div class="input-group">
-                                    <input :type="showViewPwd ? 'text' : 'password'" v-model="password" class="form-control" @keyup.enter="decryptContent">
-                                    <button class="btn btn-outline-secondary" type="button" @click="showViewPwd = !showViewPwd"
+                                <label class="etiqueta">Introduce la contraseña</label>
+                                <div class="flex">
+                                    <input :type="showViewPwd ? 'text' : 'password'" v-model="password" class="campo" @keyup.enter="decryptContent">
+                                    <button class="inline-flex items-center justify-center gap-2 font-medium boton-suave" type="button" @click="showViewPwd = !showViewPwd"
                                             :title="showViewPwd ? 'Ocultar contraseña' : 'Mostrar contraseña'">
                                         {{ showViewPwd ? '🙈' : '👁️' }}
                                     </button>
                                 </div>
                             </div>
-                            <button @click="decryptContent" class="btn btn-success w-100" :disabled="loading">
-                                <span v-if="loading" class="spinner-border spinner-border-sm"></span>
+                            <button @click="decryptContent" class="inline-flex items-center justify-center gap-2 font-medium boton-principal w-full" :disabled="loading">
+                                <span v-if="loading" class="inline-block size-4 animate-spin rounded-full border-2 border-current border-t-transparent size-3"></span>
                                 Desbloquear
                             </button>
-                            <div v-if="error" class="alert alert-danger mt-3">{{ error }}</div>
+                            <div v-if="error" class="rounded-lg border border-peligro/40 bg-peligro/10 px-4 py-3 text-sm text-peligro mt-3">{{ error }}</div>
                         </div>
                         <div v-if="decrypted">
                             <div v-if="decrypted.type === 'text'">
-                                <div v-if="decrypted.fields.length > 1" class="d-flex justify-content-between align-items-center mb-2">
-                                    <label class="form-label fw-bold mb-0">Mensaje:</label>
-                                    <button class="btn btn-sm" :class="copiedText ? 'btn-success' : 'btn-outline-success'"
+                                <div v-if="decrypted.fields.length > 1" class="flex justify-between items-center mb-2">
+                                    <label class="etiqueta font-semibold mb-0">Mensaje:</label>
+                                    <button class="inline-flex items-center justify-center gap-2 font-medium px-3 py-1 text-xs" :class="copiedText ? 'border-exito/40 bg-exito/10 text-exito' : 'border border-borde'"
                                             @click="copyAllFields">
                                         {{ copiedText ? '✅ ¡Copiado!' : '📋 Copiar todo' }}
                                     </button>
                                 </div>
-                                <div v-for="(f, i) in decrypted.fields" :key="i" class="border rounded p-2 mb-2 bg-white">
-                                    <div class="d-flex justify-content-between align-items-center mb-1">
-                                        <span class="fw-bold small campo-label" :data-campo="i">{{ f.label || 'Campo ' + (i + 1) }}</span>
-                                        <div class="d-flex gap-1">
+                                <div v-for="(f, i) in decrypted.fields" :key="i" class="campo-fila border border-borde rounded-lg p-2 mb-2 bg-superficie">
+                                    <div class="flex justify-between items-center mb-1">
+                                        <span class="font-semibold text-sm campo-label" :data-campo="i">{{ f.label || 'Campo ' + (i + 1) }}</span>
+                                        <div class="flex gap-1">
                                             <a v-if="isLinkField(f)" :href="f.value" target="_blank" rel="noopener noreferrer"
-                                               class="btn btn-sm btn-outline-primary" title="Abrir este enlace">🔗 Abrir</a>
-                                            <button class="btn btn-sm" :class="copyState(f) ? 'btn-success' : 'btn-outline-success'"
+                                               class="inline-flex items-center justify-center gap-2 font-medium boton-suave px-3 py-1 text-xs" title="Abrir este enlace">🔗 Abrir</a>
+                                            <button class="inline-flex items-center justify-center gap-2 font-medium px-3 py-1 text-xs" :class="copyState(f) ? 'border-exito/40 bg-exito/10 text-exito' : 'border border-borde'"
                                                     @click="copyField(f)">
                                                 {{ copyState(f) ? '✅ ¡Copiado!' : '📋 Copiar' }}
                                             </button>
                                         </div>
                                     </div>
                                     <a v-if="isLinkField(f)" :href="f.value" target="_blank" rel="noopener noreferrer"
-                                       class="d-block small text-break mb-0">{{ f.value }}</a>
-                                    <pre v-else class="mb-0 small" style="white-space: pre-wrap; word-break: break-word;">{{ f.value }}</pre>
+                                       class="block text-sm break-words mb-0">{{ f.value }}</a>
+                                    <pre v-else class="mb-0 text-sm" style="white-space: pre-wrap; word-break: break-word;">{{ f.value }}</pre>
                                 </div>
-                                <div v-if="decrypted.fields.length === 1" class="d-flex justify-content-end">
-                                    <button class="btn btn-sm" :class="copiedText ? 'btn-outline-success' : 'btn-outline-success'"
+                                <div v-if="decrypted.fields.length === 1" class="flex justify-end">
+                                    <button class="inline-flex items-center justify-center gap-2 font-medium px-3 py-1 text-xs" :class="copiedText ? 'border-exito/40 bg-exito/10 text-exito' : 'border border-borde'"
                                             @click="copyField(decrypted.fields[0])">
                                         {{ copyState(decrypted.fields[0]) ? '✅ ¡Copiado!' : '📋 Copiar' }}
                                     </button>
                                 </div>
                             </div>
                             <div v-if="decrypted.type === 'file'">
-                                <label class="form-label fw-bold">Archivo listo:</label>
+                                <label class="etiqueta font-semibold">Archivo listo:</label>
                                 <p>{{ decrypted.fileName }}</p>
-                                <a :href="decrypted.data" :download="decrypted.fileName" class="btn btn-primary">Descargar Archivo</a>
+                                <a :href="decrypted.data" :download="decrypted.fileName" class="inline-flex items-center justify-center gap-2 font-medium boton-principal">Descargar Archivo</a>
                             </div>
-                            <p v-if="openedHere" class="small text-muted mb-0 mt-2">
+                            <p v-if="openedHere" class="text-sm text-tenue mb-0 mt-2">
                                 Marcado como abierto en este navegador.
                             </p>
                         </div>
                     </div>
-                    <div class="card-footer text-center small bg-white">
-                        <a :href="REPO_URL" target="_blank" rel="noopener" class="link-secondary text-decoration-none">
+                    <div class="border-t border-borde bg-superficie-2 px-5 py-3 text-center text-sm bg-superficie">
+                        <a :href="REPO_URL" target="_blank" rel="noopener" class="text-tenue hover:underline no-underline">
                             Ver código en GitHub ↗
                         </a>
                     </div>
