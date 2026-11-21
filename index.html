@@ -22,7 +22,7 @@
                 <div class="flex items-center justify-between mb-3">
                     <div class="flex items-center gap-2">
                         <img src="icon.svg" alt="Mono con los ojos cerrados, logo de Compartir Seguro" width="40" height="40">
-                        <span class="font-semibold text-lg">Compartir Seguro</span>
+                        <span class="font-titulo text-lg font-semibold">Compartir Seguro</span>
                     </div>
                     <button v-if="canInstall" class="inline-flex items-center justify-center gap-2 font-medium boton-suave px-3 py-1 text-xs" @click="installApp"
                             title="Instalar la app en este dispositivo">
@@ -45,7 +45,7 @@
                 <!-- Modo Crear - Nuevo -->
                 <div v-if="mode === 'create' && tab === 'new'" class="overflow-hidden rounded-2xl border border-borde bg-superficie shadow-sm shadow-sm">
                     <div class="border-b border-borde bg-acento px-5 py-3 text-white">
-                        <h4 class="mb-0 font-semibold">Crear enlace seguro</h4>
+                        <h4 class="mb-0">Crear enlace seguro</h4>
                     </div>
                     <div class="p-5">
                         <div class="mb-3">
@@ -232,7 +232,7 @@
                 <!-- Modo Ver -->
                 <div v-if="mode === 'view'" class="overflow-hidden rounded-2xl border border-borde bg-superficie shadow-sm shadow-sm">
                     <div class="border-b border-borde bg-exito px-5 py-3 text-white">
-                        <h4 class="mb-0 font-semibold">Contenido Protegido</h4>
+                        <h4 class="mb-0">Contenido Protegido</h4>
                     </div>
                     <div class="p-5">
                         <div class="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-acento/40 bg-acento/10 px-4 py-3">

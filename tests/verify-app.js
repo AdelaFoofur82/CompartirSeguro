@@ -528,6 +528,13 @@ async function generar(w, { texto, expValue, nombre }) {
   check('cada clase del HTML existe en tailwind.css (nada sin compilar)',
     sinEstilo.length === 0, JSON.stringify(sinEstilo.slice(0, 10)));
 
+  // ---------- W. Tipografia del tema aplicada ----------
+  check('los titulos de tarjeta usan la fuente de titulos (h1-h3 del tema)',
+    /h1,h2,h3\{font-family:var\(--font-titulo\)\}/.test(cssCompilado));
+  check('Cuprum y Rajdhani se sirven en local',
+    /@font-face\{font-family:Cuprum/.test(cssCompilado) && /@font-face\{font-family:Rajdhani/.test(cssCompilado));
+  check('la marca usa font-titulo', /class="font-titulo/.test(htmlFuente));
+
   const failed = results.filter(r => !r.ok);
   console.log('\n' + (results.length - failed.length) + '/' + results.length + ' comprobaciones OK');
   process.exit(failed.length ? 1 : 0);
