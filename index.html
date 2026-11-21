@@ -45,7 +45,7 @@
                 <!-- Modo Crear - Nuevo -->
                 <div v-if="mode === 'create' && tab === 'new'" class="overflow-hidden rounded-2xl border border-borde bg-superficie shadow-sm shadow-sm">
                     <div class="border-b border-borde bg-acento px-5 py-3 text-white">
-                        <h4 class="mb-0">Crear enlace seguro</h4>
+                        <h2 class="mb-0 text-lg font-semibold">Crear enlace seguro</h2>
                     </div>
                     <div class="p-5">
                         <div class="mb-3">
@@ -119,7 +119,7 @@
                                 En Android usa los botones de arriba: el selector del sistema te deja entrar
                                 en Archivos, Descargas, Drive o cualquier app.
                             </small>
-                            <div v-if="selectedFile" class="text-sm text-tenue mt-1">
+                            <div v-if="selectedFile" class="font-mono text-sm text-tenue mt-1">
                                 {{ selectedFile.name }} · {{ formatBytes(selectedFile.size) }}
                             </div>
                             <small class="text-tenue block mt-1">
@@ -131,7 +131,7 @@
 
                         <!-- Barra de tamaño estimado -->
                         <div class="mb-3">
-                            <div class="flex justify-between text-sm text-tenue mb-1">
+                            <div class="flex justify-between font-mono text-sm text-tenue mb-1">
                                 <span>Espacio estimado del enlace</span>
                                 <span :class="estimatedBytes > MAX_BYTES ? 'font-semibold text-peligro' : ''">
                                     {{ formatBytes(estimatedBytes) }} / {{ formatBytes(MAX_BYTES) }}
@@ -160,7 +160,7 @@
                         <div v-if="generatedUrl" class="mt-4">
                             <label class="etiqueta font-semibold">Copia este enlace:</label>
                             <div class="flex">
-                                <input type="text" :value="generatedUrl" class="campo" readonly>
+                                <input type="text" :value="generatedUrl" class="campo font-mono text-xs" readonly>
                                 <button class="inline-flex items-center justify-center gap-2 font-medium boton-suave" @click="copyUrl(generatedUrl)">Copiar</button>
                                 <button v-if="canShare" class="inline-flex items-center justify-center gap-2 font-medium boton-principal" @click="shareUrl(generatedUrl, shareName)"
                                         title="Compartir con otra app">📤 Compartir</button>
@@ -178,7 +178,7 @@
                 <!-- Modo Crear - Lista -->
                 <div v-if="mode === 'create' && tab === 'list'" class="overflow-hidden rounded-2xl border border-borde bg-superficie shadow-sm shadow-sm">
                     <div class="border-b border-borde bg-superficie-2 px-5 py-3 font-semibold text-texto flex justify-between items-center">
-                        <h4 class="mb-0">Mis compartidos</h4>
+                        <h2 class="mb-0 text-lg font-semibold">Mis compartidos</h2>
                         <button class="boton-suave px-3 py-1 text-xs" @click="loadShares">Refrescar</button>
                     </div>
                     <div class="p-5">
@@ -204,7 +204,7 @@
                                     <span v-if="s.fieldCount > 1" class="pastilla">{{ s.fieldCount }} campos</span>
                                     <span class="pastilla" :class="s.openedAt ? 'pastilla-bien' : ''">{{ openedLabel(s) }}</span>
                                 </div>
-                                <div class="text-xs text-tenue mt-1 break-words">
+                                <div class="font-mono text-xs text-tenue mt-1 break-words">
                                     {{ new Date(s.date).toLocaleString() }} · {{ formatBytes(s.size) }} ·
                                     {{ s.urlLength.toLocaleString() }} chars URL
                                 </div>
@@ -219,7 +219,7 @@
                                 <button class="inline-flex items-center justify-center font-medium boton-peligro px-2 py-1 text-xs"
                                         @click="deleteShare(s.id)" title="Eliminar">🗑️</button>
                             </div>
-                            <input type="text" :value="s.url" class="campo px-2 py-1 text-xs mt-2" readonly>
+                            <input type="text" :value="s.url" class="campo font-mono px-2 py-1 text-xs mt-2" readonly>
                         </div>
                     </div>
                     <div class="border-t border-borde bg-superficie-2 px-5 py-3 text-center text-sm">
@@ -232,7 +232,7 @@
                 <!-- Modo Ver -->
                 <div v-if="mode === 'view'" class="overflow-hidden rounded-2xl border border-borde bg-superficie shadow-sm shadow-sm">
                     <div class="border-b border-borde bg-exito px-5 py-3 text-white">
-                        <h4 class="mb-0">Contenido Protegido</h4>
+                        <h2 class="mb-0 text-lg font-semibold">Contenido Protegido</h2>
                     </div>
                     <div class="p-5">
                         <div class="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-acento/40 bg-acento/10 px-4 py-3">

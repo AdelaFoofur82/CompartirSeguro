@@ -491,7 +491,7 @@ async function generar(w, { texto, expValue, nombre }) {
 
   const { w: X } = makePage('https://adelafoofur82.github.io/CompartirSeguro/');
   await sleep(400);
-  const cabecera = X.document.querySelector('h4');
+  const cabecera = X.document.querySelector('h2') || X.document.querySelector('h4');
   check('el titulo de la tarjeta es visible sobre su fondo',
     cabecera && cabecera.closest('div').className.includes('bg-acento') &&
     cabecera.closest('div').className.includes('text-white'),
@@ -534,6 +534,10 @@ async function generar(w, { texto, expValue, nombre }) {
   check('Cuprum y Rajdhani se sirven en local',
     /@font-face\{font-family:Cuprum/.test(cssCompilado) && /@font-face\{font-family:Rajdhani/.test(cssCompilado));
   check('la marca usa font-titulo', /class="font-titulo/.test(htmlFuente));
+
+  check('ningun titulo queda fuera de la regla de fuente (nada de h4/h5/h6)',
+    !/<h[4-6][\s>]/.test(htmlFuente), (htmlFuente.match(/<h[4-6][^>]*>/g) || []).join(' '));
+  check('todos los titulos son h1-h3', (htmlFuente.match(/<h[1-3][\s>]/g) || []).length >= 3);
 
   const failed = results.filter(r => !r.ok);
   console.log('\n' + (results.length - failed.length) + '/' + results.length + ' comprobaciones OK');
