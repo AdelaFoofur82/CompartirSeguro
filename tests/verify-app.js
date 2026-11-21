@@ -446,6 +446,36 @@ async function generar(w, { texto, expValue, nombre }) {
   check('sin Web Share: no hay boton Compartir',
     ![...T.document.querySelectorAll('button')].some(b => b.textContent.includes('Compartir')));
 
+  // ---------- T. Web Share Target: recibir texto compartido ----------
+  const manifiesto = JSON.parse(fs.readFileSync(path.join(ROOT, 'manifest.json'), 'utf8'));
+  const st = manifiesto.share_target || {};
+  check('manifest declara share_target', !!st.action, JSON.stringify(st));
+  check('share_target usa GET con text/url/title',
+    st.method === 'GET' && st.params && st.params.text === 'text' && st.params.url === 'url' && st.params.title === 'title');
+
+  const base = 'https://adelafoofur82.github.io/CompartirSeguro/';
+  const { w: U } = makePage(base + '?text=Nota%20secreta%20con%20%C3%B1&title=Asunto%20del%20share');
+  await sleep(500);
+  check('share: entra en modo crear', !U.document.body.textContent.includes('Introduce la contraseña'));
+  const taU = U.document.querySelectorAll('textarea');
+  check('share: el texto llega al primer campo', taU[0] && taU[0].value === 'Nota secreta con ñ', taU[0] && taU[0].value);
+  check('share: el titulo rellena el nombre',
+    U.document.querySelector('input[placeholder="Ej: Clave WiFi casa"]').value === 'Asunto del share',
+    U.document.querySelector('input[placeholder="Ej: Clave WiFi casa"]').value);
+  check('share: la URL queda limpia (sin text ni title)', U.location.search === '', U.location.search);
+
+  const { w: V } = makePage(base + '?text=Mira%20esto&url=https%3A%2F%2Fejemplo.com%2Fx%3Fa%3D1');
+  await sleep(500);
+  const taV = V.document.querySelectorAll('textarea');
+  check('share con enlace: texto en el primer campo', taV[0].value === 'Mira esto', taV[0].value);
+  check('share con enlace: url en el segundo campo', taV[1].value === 'https://ejemplo.com/x?a=1', taV[1].value);
+  check('share con enlace: detecta que es un enlace', V.document.body.textContent.includes('🔗 enlace'));
+
+  // Un enlace de secreto manda sobre el share target
+  const { w: W } = makePage(base + '?s=AAAA&text=no%20debe%20pisar');
+  await sleep(400);
+  check('?s= manda sobre share target', W.document.body.textContent.includes('Introduce la contraseña'));
+
   const failed = results.filter(r => !r.ok);
   console.log('\n' + (results.length - failed.length) + '/' + results.length + ' comprobaciones OK');
   process.exit(failed.length ? 1 : 0);

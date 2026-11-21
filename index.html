@@ -594,10 +594,35 @@
                     return 'Abierto ' + n + (n > 1 ? ' veces' : ' vez') + ' · ' + new Date(s.openedAt).toLocaleString();
                 };
 
+                // Recibir contenido compartido desde el sistema (Web Share Target):
+                // el manifiesto registra action="./index.html" con params text/url/title,
+                // así que el sistema abre la app con ?text=...&url=...&title=...
+                const aplicarShareTarget = () => {
+                    const p = new URLSearchParams(window.location.search);
+                    if (p.has(PARAM)) return false;            // es un enlace de secreto, no un share
+                    const texto = (p.get('text') || '').trim();
+                    const url = (p.get('url') || '').trim();
+                    const titulo = (p.get('title') || '').trim();
+                    if (!texto && !url && !titulo) return false;
+
+                    contentType.value = 'fields';
+                    if (!fields.value.length) fields.value = [newField(), newField()];
+                    if (texto) fields.value[0].value = texto;
+                    else if (url) fields.value[0].value = url;
+                    // texto + enlace a la vez: el enlace va a su propio campo
+                    if (texto && url && fields.value[1] && !fields.value[1].value) fields.value[1].value = url;
+                    if (titulo && !shareName.value) shareName.value = titulo;
+
+                    // Limpia la URL para no dejar el contenido compartido en el historial
+                    window.history.replaceState({}, '', window.location.pathname);
+                    return true;
+                };
+
                 onMounted(() => {
                     if (readPayload()) {
                         mode.value = 'view';
                     }
+                    aplicarShareTarget();
                     homeUrl.value = window.location.origin + window.location.pathname;
                     loadShares();
                     updateEstimate();

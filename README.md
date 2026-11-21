@@ -19,7 +19,9 @@ el contenido cifrado viaja en la propia URL, así que nada se guarda en ningún 
 - Quien lo recibe abre el enlace, mete la contraseña y ve el texto o descarga el archivo.
 
 Extra: botón de copiar en cada campo (y «Copiar todo»), **compartir nativo** del enlace con la hoja del sistema
-(cuando el navegador soporta Web Share, es decir casi cualquier móvil), ojo 🙈/👁️ para ver la contraseña mientras la escribes,
+(cuando el navegador soporta Web Share, es decir casi cualquier móvil), **recibir** contenido compartido
+desde otras apps (Web Share Target: aparece en el menú «Compartir» de Android y abre el formulario con
+lo compartido ya relleno), ojo 🙈/👁️ para ver la contraseña mientras la escribes,
 historial local de lo que has compartido. La app se puede **instalar**
 (botón 📲 Instálame cuando el navegador lo permite) y la página de ver invita a quien recibe el secreto
 a crear el suyo. El logo y el favicon son el mismo monito con los ojos cerrados de la contraseña.
@@ -139,6 +141,17 @@ python3 -m http.server 8099
 
 **Importante al publicar:** `sw.js` es cache-first. Cada vez que cambies `index.html` hay que subir
 `CACHE_NAME` (`share-secure-v4` → `v5`), o quien ya la haya abierto seguirá viendo la versión vieja.
+
+### Recibir contenido compartido
+
+El manifiesto declara un `share_target` (GET, params `title` / `text` / `url`): al compartir un texto o un
+enlace desde otra app, Compartir Seguro aparece en la hoja de compartir y abre el formulario con ese
+contenido repartido en los campos (texto en el primero, enlace en el segundo). Esa URL se limpia después
+con `history.replaceState`, para no dejar el contenido compartido en el historial del navegador.
+
+Detalle importante: **el share target solo existe si la app está instalada** (Chrome registra los targets
+de las web apps instaladas, no de una pestaña cualquiera). En Android: menú ⋮ → «Instalar aplicación» o
+el botón 📲 Instálame, y a partir de ahí aparece en el menú Compartir del sistema.
 
 ### Instalación como app
 
