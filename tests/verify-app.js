@@ -497,6 +497,37 @@ async function generar(w, { texto, expValue, nombre }) {
     cabecera.closest('div').className.includes('text-white'),
     cabecera && cabecera.closest('div').className);
 
+  // ---------- V. Todas las clases usadas existen en el CSS compilado ----------
+  const htmlFuente = fs.readFileSync(path.join(ROOT, 'index.html'), 'utf8');
+  const cssCompilado = fs.readFileSync(path.join(ROOT, 'tailwind.css'), 'utf8').replace(/\\/g, '');
+  const INTERNAS = new Set(['campo-fila', 'campo-label']);   // hooks de prueba, sin estilo propio
+  const VALIDA = /^[a-z][a-z0-9:/.\[\]-]*$/;
+  const PREFIJOS = ['bg-', 'text-', 'border', 'p-', 'px-', 'py-', 'm-', 'mb-', 'mt-', 'ml-', 'mr-', 'mx-', 'my-',
+    'gap-', 'w-', 'h-', 'size-', 'flex', 'grid', 'items-', 'justify-', 'font-', 'rounded', 'shadow', 'overflow',
+    'min-', 'max-', 'leading-', 'tracking-', 'animate-', 'opacity-', 'inline', 'block', 'hidden', 'truncate',
+    'break-', 'whitespace-', 'divide-', 'space-', 'col-', 'row-', 'self-', 'order-', 'ring', 'outline-', 'fill-',
+    'stroke-', 'transition', 'duration-', 'cursor-', 'select-', 'resize', 'object-', 'aspect-', 'z-', 'container',
+    'sr-only', 'pastilla', 'boton-', 'caja', 'campo', 'etiqueta', 'ayuda', 'dato', 'barra', 'paso', 'tabla', 'mono',
+    'hover:'];
+  const tokens = new Set();
+  const anotar = (texto) => {
+    const limpio = texto.replace(/['"(){}]/g, ' ').replace(/=[^\s]+/g, ' ');
+    for (const tk of limpio.split(/\s+/)) {
+      if (!tk || !VALIDA.test(tk) || tk.endsWith(':')) continue;
+      if (!PREFIJOS.some(p => tk === p || tk.startsWith(p))) continue;
+      tokens.add(tk);
+    }
+  };
+  for (const m of htmlFuente.matchAll(/class="([^"]*)"/g)) anotar(m[1]);
+  for (const m of htmlFuente.matchAll(/:class="([^"]*)"/g)) anotar(m[1]);
+  const escapar = (tk) => tk.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const sinEstilo = [...tokens].filter(tk => {
+    if (INTERNAS.has(tk)) return false;
+    return !new RegExp('\\.' + escapar(tk) + '(?![\\w-])').test(cssCompilado);
+  });
+  check('cada clase del HTML existe en tailwind.css (nada sin compilar)',
+    sinEstilo.length === 0, JSON.stringify(sinEstilo.slice(0, 10)));
+
   const failed = results.filter(r => !r.ok);
   console.log('\n' + (results.length - failed.length) + '/' + results.length + ' comprobaciones OK');
   process.exit(failed.length ? 1 : 0);

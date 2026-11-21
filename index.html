@@ -74,7 +74,7 @@
                             <label class="etiqueta">Campos del secreto</label>
                             <div v-for="(f, i) in fields" :key="f.id" class="border border-borde rounded-lg p-2 mb-2 bg-superficie">
                                 <div class="flex gap-2 items-center mb-1">
-                                    <input type="text" v-model="f.label" class="campo campo px-2 py-1 text-xs"
+                                    <input type="text" v-model="f.label" class="campo px-2 py-1 text-xs"
                                            :placeholder="i === 0 ? 'Nombre (ej: Email)' : 'Nombre (ej: Contraseña)'">
                                     <span v-if="detectUrl(f.value)" class="pastilla bg-exito">🔗 enlace</span>
                                     <button class="inline-flex items-center justify-center gap-2 font-medium boton-peligro ml-auto px-3 py-1 text-xs" @click="removeField(i)"
@@ -177,7 +177,7 @@
 
                 <!-- Modo Crear - Lista -->
                 <div v-if="mode === 'create' && tab === 'list'" class="overflow-hidden rounded-2xl border border-borde bg-superficie shadow-sm shadow-sm">
-                    <div class="border-b border-borde bg-superficie-2 px-5 py-3 font-semibold flex justify-between items-center">
+                    <div class="border-b border-borde bg-superficie-2 px-5 py-3 font-semibold text-texto flex justify-between items-center">
                         <h4 class="mb-0">Mis compartidos</h4>
                         <button class="boton-suave px-3 py-1 text-xs" @click="loadShares">Refrescar</button>
                     </div>
@@ -190,42 +190,36 @@
                             Para saber si otra persona lo abrió haría falta un servidor.
                         </p>
                         <div v-for="s in shares" :key="s.id" class="border border-borde rounded-lg p-3 mb-2">
-                            <div class="flex justify-between items-start">
-                                <div class="flex-grow-1 me-2">
-                                    <div v-if="s.editing">
-                                        <input type="text" v-model="s.editName" class="campo campo px-2 py-1 text-xs mb-1">
-                                        <button class="inline-flex items-center justify-center gap-2 font-medium boton-principal px-3 py-1 text-xs" @click="saveRename(s)">Guardar</button>
-                                        <button class="inline-flex items-center justify-center gap-2 font-medium boton-suave px-3 py-1 text-xs" @click="s.editing=false">Cancelar</button>
-                                    </div>
-                                    <div v-else>
-                                        <div class="font-semibold">
-                                            {{ s.name || '(sin nombre)' }}
-                                            <span class="pastilla bg-acento text-texto ml-1">{{ s.type }}</span>
-                                            <span v-if="s.fieldCount > 1" class="pastilla bg-fondo text-tenue border border-borde ml-1">
-                                                {{ s.fieldCount }} campos
-                                            </span>
-                                        </div>
-                                        <small class="text-tenue">
-                                            {{ new Date(s.date).toLocaleString() }} ·
-                                            {{ formatBytes(s.size) }} ·
-                                            {{ s.urlLength.toLocaleString() }} chars URL
-                                        </small>
-                                        <div class="mt-1">
-                                            <span class="pastilla" :class="s.openedAt ? 'border-exito/40 bg-exito/10 text-exito' : 'text-tenue'">{{ openedLabel(s) }}</span>
-                                        </div>
-                                    </div>
-                                </div>
-                                <div class="inline-flex gap-1">
-                                    <button v-if="canShare" class="inline-flex items-center justify-center gap-2 font-medium boton-suave" @click="shareUrl(s.url, s.name)"
-                                            title="Compartir">📤</button>
-                                    <button class="inline-flex items-center justify-center gap-2 font-medium boton-suave" @click="copyUrl(s.url)" title="Copiar">📋</button>
-                                    <button class="inline-flex items-center justify-center gap-2 font-medium boton-suave" @click="startRename(s)" title="Renombrar">✏️</button>
-                                    <button class="inline-flex items-center justify-center gap-2 font-medium boton-peligro" @click="deleteShare(s.id)" title="Eliminar">🗑️</button>
+                            <div v-if="s.editing">
+                                <input type="text" v-model="s.editName" class="campo px-2 py-1 text-xs mb-1">
+                                <div class="flex flex-wrap gap-1">
+                                    <button class="inline-flex items-center justify-center gap-2 font-medium boton-principal px-3 py-1 text-xs" @click="saveRename(s)">Guardar</button>
+                                    <button class="inline-flex items-center justify-center gap-2 font-medium boton-suave px-3 py-1 text-xs" @click="s.editing=false">Cancelar</button>
                                 </div>
                             </div>
-                            <div class="mt-2">
-                                <input type="text" :value="s.url" class="campo campo px-2 py-1 text-xs" readonly>
+                            <template v-else>
+                                <div class="font-semibold break-words">{{ s.name || '(sin nombre)' }}</div>
+                                <div class="flex flex-wrap items-center gap-1 mt-1">
+                                    <span class="pastilla bg-acento text-texto">{{ s.type }}</span>
+                                    <span v-if="s.fieldCount > 1" class="pastilla">{{ s.fieldCount }} campos</span>
+                                    <span class="pastilla" :class="s.openedAt ? 'pastilla-bien' : ''">{{ openedLabel(s) }}</span>
+                                </div>
+                                <div class="text-xs text-tenue mt-1 break-words">
+                                    {{ new Date(s.date).toLocaleString() }} · {{ formatBytes(s.size) }} ·
+                                    {{ s.urlLength.toLocaleString() }} chars URL
+                                </div>
+                            </template>
+                            <div class="flex flex-wrap items-center gap-1 mt-2">
+                                <button v-if="canShare" class="inline-flex items-center justify-center font-medium boton-suave px-2 py-1 text-xs"
+                                        @click="shareUrl(s.url, s.name)" title="Compartir">📤</button>
+                                <button class="inline-flex items-center justify-center font-medium boton-suave px-2 py-1 text-xs"
+                                        @click="copyUrl(s.url)" title="Copiar">📋</button>
+                                <button class="inline-flex items-center justify-center font-medium boton-suave px-2 py-1 text-xs"
+                                        @click="startRename(s)" title="Renombrar">✏️</button>
+                                <button class="inline-flex items-center justify-center font-medium boton-peligro px-2 py-1 text-xs"
+                                        @click="deleteShare(s.id)" title="Eliminar">🗑️</button>
                             </div>
+                            <input type="text" :value="s.url" class="campo px-2 py-1 text-xs mt-2" readonly>
                         </div>
                     </div>
                     <div class="border-t border-borde bg-superficie-2 px-5 py-3 text-center text-sm">
