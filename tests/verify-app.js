@@ -540,6 +540,8 @@ async function generar(w, { texto, expValue, nombre }) {
   check('todos los titulos son h1-h3', (htmlFuente.match(/<h[1-3][\s>]/g) || []).length >= 3);
 
   check('la base usa Cuprum como fuente general (--font-sans)', /--font-sans:"Cuprum"/.test(cssCompilado));
+  check('body fija la familia explicitamente (no depende del preflight)',
+    /body\{[^}]*font-family:var\(--font-sans\)/.test(cssCompilado), (cssCompilado.match(/body\{[^}]*\}/) || [''])[0]);
   check('html hereda --default-font-family de --font-sans', /--default-font-family:var\(--font-sans\)/.test(cssCompilado));
 
   const failed = results.filter(r => !r.ok);

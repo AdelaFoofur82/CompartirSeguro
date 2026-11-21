@@ -102,7 +102,7 @@
 
 @layer base {
   html { @apply antialiased; }
-  body { @apply bg-fondo text-texto; }
+  body { @apply bg-fondo text-texto; font-family: var(--font-sans); }
   h1, h2, h3 { @apply font-titulo; }
   code, .mono, kbd { @apply font-mono; }
   ::selection { background: color-mix(in srgb, var(--tono-acento) 25%, transparent); }
