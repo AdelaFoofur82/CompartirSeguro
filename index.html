@@ -599,12 +599,12 @@
                     const titulo = (p.get('title') || '').trim();
                     if (!texto && !url && !titulo) return false;
 
-                    contentType.value = 'fields';
-                    if (!fields.value.length) fields.value = [newField(), newField()];
-                    if (texto) fields.value[0].value = texto;
-                    else if (url) fields.value[0].value = url;
-                    // texto + enlace a la vez: el enlace va a su propio campo
-                    if (texto && url && fields.value[1] && !fields.value[1].value) fields.value[1].value = url;
+                    // Lo compartido entra como texto libre, no como campos con nombre
+                    contentType.value = 'text';
+                    const partes = [];
+                    if (texto) partes.push(texto);
+                    if (url && url !== texto) partes.push(url);
+                    plainText.value = partes.join('\n');
                     if (titulo && !shareName.value) shareName.value = titulo;
 
                     // Limpia la URL para no dejar el contenido compartido en el historial
