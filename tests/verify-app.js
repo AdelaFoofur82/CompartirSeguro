@@ -213,6 +213,24 @@ async function generar(w, { texto, expValue, nombre }) {
   const { w: K } = makePage('https://adelafoofur82.github.io/CompartirSeguro/');
   await sleep(500);
   const setK = (el, v) => { el.value = v; el.dispatchEvent(new K.Event('input', { bubbles: true })); };
+
+  // el modo por defecto es texto libre
+  const selK0 = [...K.document.querySelectorAll('select')].find(x => [...x.options].some(o => o.value === 'file'));
+  check('el tipo de secreto por defecto es texto libre', selK0.value === 'text', 'tipo=' + selK0.value);
+  check('la primera opcion del desplegable es texto libre',
+    selK0.options[0].value === 'text', 'primera=' + selK0.options[0].value);
+  setK(K.document.querySelector('textarea'), 'x'.repeat(500));
+  await sleep(600);
+  const barraK = K.document.body.textContent.replace(/\s+/g, ' ').match(/(\d+[.,]?\d* [KMB]+) \/ (\d+[.,]?\d* [KMB]+)/);
+  check('escribir en texto libre mueve la barra de tamano',
+    !!barraK && barraK[1] !== barraK[2] && !/^98 B/.test(barraK[1]), barraK && barraK[0]);
+  setK(K.document.querySelector('textarea'), '');
+  await sleep(400);
+  check('con texto libre hay un solo campo de texto',
+    [...K.document.querySelectorAll('textarea')].filter(x => x.placeholder === 'Escribe el secreto...').length === 1);
+  selK0.value = 'fields';
+  selK0.dispatchEvent(new K.Event('change', { bubbles: true }));
+  await sleep(150);
   check('dos campos por defecto', K.document.querySelectorAll('textarea').length === 2,
     'textareas=' + K.document.querySelectorAll('textarea').length);
   setK(K.document.querySelector('input[placeholder="Mínimo 4 caracteres"]'), 'clave-segura-123');

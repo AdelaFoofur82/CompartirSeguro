@@ -65,8 +65,8 @@
                         <div class="mb-3">
                             <label class="etiqueta">Tipo de contenido</label>
                             <select v-model="contentType" class="campo">
-                                <option value="fields">Campos con nombre (email, contraseña, URL…)</option>
                                 <option value="text">Texto libre</option>
+                                <option value="fields">Campos con nombre (email, contraseña, URL…)</option>
                                 <option value="file">Archivo</option>
                             </select>
                         </div>
@@ -470,7 +470,7 @@
                 const mode = ref('create');
                 const tab = ref('new');
                 const password = ref('');
-                const contentType = ref('fields');
+                const contentType = ref('text');
                 const plainText = ref('');
                 const fields = ref(DEFAULT_FIELDS.map(f => newField(f.label, f.value)));
                 const selectedFile = ref(null);
@@ -569,7 +569,7 @@
                 };
 
                 let estimateTimer = null;
-                watch([contentType, fields, selectedFile], () => {
+                watch([contentType, fields, plainText, selectedFile], () => {
                     clearTimeout(estimateTimer);
                     estimateTimer = setTimeout(updateEstimate, 250);
                 }, { deep: true });
